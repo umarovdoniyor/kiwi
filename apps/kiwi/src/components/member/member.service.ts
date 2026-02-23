@@ -9,17 +9,17 @@ export class MemberService {
   ) {}
 
   public async signUp(): Promise<string> {
-    return 'Sign up successful';
+    return await Promise.resolve('Sign up successful');
   }
   public async logIn(): Promise<string> {
-    return 'Log in successful';
+    return await Promise.resolve('Log in successful');
   }
   public async updateMember(): Promise<string> {
-    return 'Update member successful';
+    return await Promise.resolve('Update member successful');
   }
 
   public async getMember(): Promise<string> {
-    return 'Get member successful';
+    return await Promise.resolve('Get member successful');
   }
 
   // END of CLASS
