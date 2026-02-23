@@ -12,7 +12,7 @@
     "start:dev": "nest start --watch",
     "start:dev:batch": "nest start kiwi-batch --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/apps/kiwi/main",
+    "start:prod": "NODE_ENV=production node dist/apps/kiwi/main",
     "start:prod:batch": "node dist/apps/kiwi-batch/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
