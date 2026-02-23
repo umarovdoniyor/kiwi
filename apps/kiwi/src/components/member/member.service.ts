@@ -3,7 +3,13 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { MemberResponse } from '../../libs/dto/member/member';
 import { MemberDocument } from '../../libs/dto/member/memberDocument';
-import { MemberSignUpInput } from '../../libs/dto/member/member.input';
+import {
+  MemberLoginInput,
+  MemberSignUpInput,
+} from '../../libs/dto/member/member.input';
+import { exec } from 'child_process';
+import { MemberStatus } from '../../libs/enums/member.enums';
+import { Message } from '../../libs/enums/common.enum';
 
 @Injectable()
 export class MemberService {
@@ -28,9 +34,36 @@ export class MemberService {
       throw new BadRequestException(err);
     }
   }
-  public async logIn(): Promise<string> {
-    return await Promise.resolve('Log in successful');
+  public async logIn(input: MemberLoginInput): Promise<MemberResponse> {
+    const { identifier, memberPassword } = input;
+    const response = await this.memberModel
+      .findOne({
+        $or: [
+          { memberEmail: identifier },
+          { memberPhone: identifier },
+          { memberNickname: identifier },
+        ],
+      })
+      .select('+memberPassword')
+      .exec();
+
+    if (!response || response.memberStatus === MemberStatus.SUSPENDED) {
+      throw new BadRequestException(Message.SUSPENDED_USER);
+    } else if (response.memberStatus === MemberStatus.BLOCKED) {
+      throw new BadRequestException(Message.BLOCKED_USER);
+    }
+
+    // TODO: Compare hashed password
+    console.log('response: ', response);
+    const isMatch = memberPassword === response.memberPassword;
+
+    if (!isMatch) {
+      throw new BadRequestException(Message.WRONG_PASSWORD);
+    }
+
+    return this.toMemberResponse(response);
   }
+
   public async updateMember(): Promise<string> {
     return await Promise.resolve('Update member successful');
   }
