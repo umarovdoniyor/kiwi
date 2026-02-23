@@ -5,4 +5,4 @@ async function bootstrap() {
   const app = await NestFactory.create(KiwiBatchModule);
   await app.listen(process.env.PORT_BATCH ?? 3008);
 }
-bootstrap();
+void bootstrap();
