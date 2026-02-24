@@ -93,7 +93,7 @@ export class MemberService implements OnApplicationBootstrap {
       // return this.toMemberResponse(newMember);
       return this.toMemberResponse(newMember);
     } catch (err) {
-      console.log('Error, Service.signUp', err);
+      console.log('Error, Service.signUp', err.message);
       throw new BadRequestException(err);
     }
   }
