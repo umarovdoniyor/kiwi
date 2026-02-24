@@ -1,10 +1,17 @@
 import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import { MemberService } from './member.service';
 import {
   MemberLoginInput,
   MemberSignUpInput,
 } from '../../libs/dto/member/member.input';
-import { MemberAuthResponse } from '../../libs/dto/member/member';
+import {
+  MemberAuthResponse,
+  MemberResponse,
+} from '../../libs/dto/member/member';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { AuthMember } from '../auth/decorators/authMember.decorator';
+import type { JwtPayload } from '../../libs/types/common';
 
 @Resolver()
 export class MemberResolver {
@@ -24,6 +31,23 @@ export class MemberResolver {
   ): Promise<MemberAuthResponse> {
     console.log('Mutation: logIn');
     return await this.memberService.logIn(input);
+  }
+
+  // Session restoration - JWT protected
+  @Query(() => MemberResponse)
+  @UseGuards(AuthGuard)
+  public async me(@AuthMember() member: JwtPayload): Promise<MemberResponse> {
+    console.log('Query: me - Restoring session for:', member.memberEmail);
+    return await this.memberService.getMemberById(member.sub);
+  }
+
+  // Public member profile - anyone can view
+  @Query(() => MemberResponse)
+  public async getMemberProfile(
+    @Args('memberId') memberId: string,
+  ): Promise<MemberResponse> {
+    console.log('Query: getMemberProfile - Fetching profile for:', memberId);
+    return await this.memberService.getMemberProfile(memberId);
   }
 
   // Authenticated user

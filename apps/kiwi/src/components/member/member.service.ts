@@ -172,6 +172,53 @@ export class MemberService implements OnApplicationBootstrap {
     return await Promise.resolve('Get member successful');
   }
 
+  public async getMemberById(memberId: string): Promise<MemberResponse> {
+    try {
+      const member = await this.memberModel.findById(memberId).exec();
+
+      if (!member) {
+        throw new BadRequestException(Message.WRONG_PASSWORD);
+      }
+
+      if (member.memberStatus === MemberStatus.SUSPENDED) {
+        throw new BadRequestException(Message.SUSPENDED_USER);
+      } else if (member.memberStatus === MemberStatus.BLOCKED) {
+        throw new BadRequestException(Message.BLOCKED_USER);
+      }
+
+      // const accessToken = await this.authService.createToken(
+      //   this.toMemberResponse(member),
+      // );
+
+      return this.toMemberResponse(member);
+    } catch (err) {
+      console.log('Error, Service.getMemberById', err.message);
+      throw new BadRequestException(err);
+    }
+  }
+
+  public async getMemberProfile(memberId: string): Promise<MemberResponse> {
+    try {
+      const member = await this.memberModel.findById(memberId).exec();
+
+      if (!member) {
+        throw new BadRequestException(Message.WRONG_PASSWORD);
+      }
+
+      if (
+        member.memberStatus === MemberStatus.SUSPENDED ||
+        member.memberStatus === MemberStatus.BLOCKED
+      ) {
+        throw new BadRequestException('Member profile not accessible');
+      }
+
+      return this.toMemberResponse(member);
+    } catch (err) {
+      console.log('Error, Service.getMemberProfile', err.message);
+      throw new BadRequestException(err);
+    }
+  }
+
   /** ADMIN */
   public async getAllMembersByAdmin(): Promise<string> {
     return await Promise.resolve('Get all members by admin successful');
