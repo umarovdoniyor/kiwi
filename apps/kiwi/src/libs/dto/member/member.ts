@@ -65,3 +65,12 @@ export class MemberResponse {
   @Field(() => Date)
   updatedAt: Date;
 }
+
+@ObjectType()
+export class MemberAuthResponse {
+  @Field(() => MemberResponse)
+  member: MemberResponse;
+
+  @Field()
+  accessToken: string;
+}

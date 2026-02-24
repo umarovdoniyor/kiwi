@@ -6,7 +6,10 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
-import { MemberResponse } from '../../libs/dto/member/member';
+import {
+  MemberAuthResponse,
+  MemberResponse,
+} from '../../libs/dto/member/member';
 import { MemberDocument } from '../../libs/dto/member/memberDocument';
 import {
   MemberLoginInput,
@@ -81,59 +84,84 @@ export class MemberService implements OnApplicationBootstrap {
       memberStatus: doc.memberStatus,
       isEmailVerified: doc.isEmailVerified,
       isPhoneVerified: doc.isPhoneVerified,
+      lastLoginAt: doc.lastLoginAt,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
   }
 
-  public async signUp(input: MemberSignUpInput): Promise<MemberResponse> {
-    // TODO: Hash password
-    input.memberPassword = await this.authService.hashPassword(
+  public async signUp(input: MemberSignUpInput): Promise<MemberAuthResponse> {
+    const hashedPassword = await this.authService.hashPassword(
       input.memberPassword,
     );
     try {
-      const newMember = await this.memberModel.create(input);
-      // TODO: Authentication
-      console.log('New member created: ', newMember);
-      // return this.toMemberResponse(newMember);
-      return this.toMemberResponse(newMember);
+      const newMember = await this.memberModel.create({
+        ...input,
+        memberEmail: input.memberEmail.toLowerCase().trim(),
+        memberPassword: hashedPassword,
+        memberType: MemberType.CUSTOMER,
+        lastLoginAt: new Date(),
+      });
+
+      const accessToken = await this.authService.createToken(
+        this.toMemberResponse(newMember),
+      );
+      return {
+        member: this.toMemberResponse(newMember),
+        accessToken,
+      };
     } catch (err) {
       console.log('Error, Service.signUp', err.message);
       throw new BadRequestException(err);
     }
   }
-  public async logIn(input: MemberLoginInput): Promise<MemberResponse> {
+  public async logIn(input: MemberLoginInput): Promise<MemberAuthResponse> {
     const { identifier, memberPassword } = input;
+
+    // Normalize identifier for case-insensitive email lookup
+    const normalizedIdentifier = identifier.toLowerCase().trim();
+
     const response = await this.memberModel
       .findOne({
         $or: [
-          { memberEmail: identifier },
-          { memberPhone: identifier },
-          { memberNickname: identifier },
+          { memberEmail: normalizedIdentifier },
+          { memberPhone: normalizedIdentifier },
+          { memberNickname: identifier }, // Keep original case for nickname
         ],
       })
       .select('+memberPassword')
       .exec();
 
-    if (!response || response.memberStatus === MemberStatus.SUSPENDED) {
+    if (!response) {
+      throw new BadRequestException(Message.WRONG_PASSWORD);
+    }
+
+    if (response.memberStatus === MemberStatus.SUSPENDED) {
       throw new BadRequestException(Message.SUSPENDED_USER);
     } else if (response.memberStatus === MemberStatus.BLOCKED) {
       throw new BadRequestException(Message.BLOCKED_USER);
     }
-
-    // TODO: Compare hashed password
-    console.log('response: ', response);
     const isMatch = await this.authService.comparePasswords(
       memberPassword,
       response.memberPassword,
     );
-
     if (!isMatch) {
       throw new BadRequestException(Message.WRONG_PASSWORD);
     }
 
-    // return this.toMemberResponse(response);
-    return this.toMemberResponse(response);
+    const now = new Date(); // Update lastLoginAt timestamp
+    response.lastLoginAt = now;
+    await this.memberModel.findByIdAndUpdate(response._id, {
+      lastLoginAt: now,
+    });
+
+    const accessToken = await this.authService.createToken(
+      this.toMemberResponse(response),
+    );
+    return {
+      member: this.toMemberResponse(response),
+      accessToken,
+    };
   }
 
   public async updateMember(): Promise<string> {

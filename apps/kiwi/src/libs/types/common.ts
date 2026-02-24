@@ -21,3 +21,12 @@ export interface GraphQLErrorInput {
   };
   message?: string;
 }
+
+export interface JwtPayload {
+  sub: string;
+  memberEmail: string;
+  memberType: string;
+  memberStatus: string;
+  iat?: number;
+  exp?: number;
+}

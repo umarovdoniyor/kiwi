@@ -2,8 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { MemberResponse } from '../../libs/dto/member/member';
-import { T } from '../../libs/types/common';
-import { shapeIngoMongoObjectId } from '../../libs/config';
+import { JwtPayload } from '../../libs/types/common';
 
 @Injectable()
 export class AuthService {
@@ -22,17 +21,16 @@ export class AuthService {
   }
 
   public async createToken(member: MemberResponse): Promise<string> {
-    const payload: T = {};
-    Object.keys(member['_doc'] ? member['_doc'] : member).map((ele) => {
-      payload[`${ele}`] = member[`${ele}`];
-    });
-    delete payload.memberPassword;
+    const payload: JwtPayload = {
+      sub: member._id,
+      memberEmail: member.memberEmail,
+      memberType: member.memberType,
+      memberStatus: member.memberStatus,
+    };
     return await this.jwtService.signAsync(payload);
   }
 
-  public async verifyToken(token: string): Promise<MemberResponse> {
-    const member = await this.jwtService.verifyAsync(token);
-    member._id = shapeIngoMongoObjectId(member._id);
-    return member;
+  public async verifyToken(token: string): Promise<JwtPayload> {
+    return await this.jwtService.verifyAsync<JwtPayload>(token);
   }
 }
