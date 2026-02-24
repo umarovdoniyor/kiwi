@@ -172,5 +172,14 @@ export class MemberService implements OnApplicationBootstrap {
     return await Promise.resolve('Get member successful');
   }
 
+  /** ADMIN */
+  public async getAllMembersByAdmin(): Promise<string> {
+    return await Promise.resolve('Get all members by admin successful');
+  }
+
+  public async updateMemberByAdmin(): Promise<string> {
+    return await Promise.resolve('Update member by admin successful');
+  }
+
   // END of CLASS
 }
