@@ -70,9 +70,15 @@ export const MemberSchema = new Schema(
     lastLoginAt: { type: Date },
     deletedAt: { type: Date },
   },
-  { timestamps: true, collection: 'members' },
+  {
+    timestamps: true,
+    collection: 'members',
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
 
 // Optional indexes
 MemberSchema.index({ memberEmail: 1 });
 MemberSchema.index({ memberPhone: 1 });
+MemberSchema.index({ memberNickname: 1 });

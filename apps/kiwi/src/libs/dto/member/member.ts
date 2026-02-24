@@ -1,6 +1,5 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
 import { MemberStatus, MemberType } from '../../enums/member.enums';
-import type { ObjectId } from 'mongoose';
 
 @ObjectType()
 export class VendorProfileResponse {
@@ -20,7 +19,7 @@ export class VendorProfileResponse {
 @ObjectType()
 export class MemberResponse {
   @Field(() => ID)
-  _id: ObjectId;
+  _id: string;
 
   @Field()
   memberEmail: string;
@@ -36,6 +35,8 @@ export class MemberResponse {
 
   @Field()
   memberLastName: string;
+
+  memberPassword?: string; // Not exposed in GraphQL
 
   @Field({ nullable: true })
   memberAvatar?: string;
@@ -58,6 +59,9 @@ export class MemberResponse {
   @Field({ nullable: true })
   lastLoginAt?: Date;
 
-  @Field()
+  @Field(() => Date)
   createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
 }
