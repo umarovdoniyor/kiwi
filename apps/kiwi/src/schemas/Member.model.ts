@@ -77,8 +77,3 @@ export const MemberSchema = new Schema(
     toObject: { virtuals: true },
   },
 );
-
-// Optional indexes
-MemberSchema.index({ memberEmail: 1 });
-MemberSchema.index({ memberPhone: 1 });
-MemberSchema.index({ memberNickname: 1 });

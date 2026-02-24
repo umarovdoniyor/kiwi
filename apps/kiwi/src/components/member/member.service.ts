@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { MemberResponse } from '../../libs/dto/member/member';
 import { MemberDocument } from '../../libs/dto/member/memberDocument';
@@ -15,6 +14,7 @@ import {
 } from '../../libs/dto/member/member.input';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enums';
 import { Message } from '../../libs/enums/common.enum';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class MemberService implements OnApplicationBootstrap {
@@ -22,6 +22,7 @@ export class MemberService implements OnApplicationBootstrap {
     @InjectModel('Member')
     private readonly memberModel: Model<MemberDocument>,
     private readonly configService: ConfigService,
+    private readonly authService: AuthService,
   ) {}
   async onApplicationBootstrap() {
     await this.createAdminIfNotExists();
@@ -48,7 +49,8 @@ export class MemberService implements OnApplicationBootstrap {
         return;
       }
 
-      const hashedPassword: string = await bcrypt.hash(adminPassword, 10);
+      const hashedPassword: string =
+        await this.authService.hashPassword(adminPassword);
 
       await this.memberModel.create({
         memberEmail: adminEmail.toLowerCase(),
@@ -86,6 +88,9 @@ export class MemberService implements OnApplicationBootstrap {
 
   public async signUp(input: MemberSignUpInput): Promise<MemberResponse> {
     // TODO: Hash password
+    input.memberPassword = await this.authService.hashPassword(
+      input.memberPassword,
+    );
     try {
       const newMember = await this.memberModel.create(input);
       // TODO: Authentication
@@ -118,7 +123,10 @@ export class MemberService implements OnApplicationBootstrap {
 
     // TODO: Compare hashed password
     console.log('response: ', response);
-    const isMatch = memberPassword === response.memberPassword;
+    const isMatch = await this.authService.comparePasswords(
+      memberPassword,
+      response.memberPassword,
+    );
 
     if (!isMatch) {
       throw new BadRequestException(Message.WRONG_PASSWORD);
