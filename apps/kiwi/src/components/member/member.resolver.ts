@@ -9,6 +9,7 @@ import {
   MemberAuthResponse,
   MemberResponse,
 } from '../../libs/dto/member/member';
+import { MemberUpdate } from '../../libs/dto/member/member.update';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
 import type { JwtPayload } from '../../libs/types/common';
@@ -34,8 +35,8 @@ export class MemberResolver {
   }
 
   // Session restoration - JWT protected
-  @Query(() => MemberResponse)
   @UseGuards(AuthGuard)
+  @Query(() => MemberResponse)
   public async me(@AuthMember() member: JwtPayload): Promise<MemberResponse> {
     console.log('Query: me - Restoring session for:', member.memberEmail);
     return await this.memberService.getMemberById(member.sub);
@@ -50,11 +51,14 @@ export class MemberResolver {
     return await this.memberService.getMemberProfile(memberId);
   }
 
-  // Authenticated user
-  @Mutation(() => String)
-  public async updateMember(): Promise<string> {
-    console.log('Mutation: updateMember');
-    return await this.memberService.updateMember();
+  @UseGuards(AuthGuard)
+  @Mutation(() => MemberResponse)
+  public async updateMember(
+    @Args('input') input: MemberUpdate,
+    @AuthMember('sub') memberId: string,
+  ): Promise<MemberResponse> {
+    console.log('Mutation:updateMember');
+    return await this.memberService.updateMember(memberId, input);
   }
 
   @Query(() => String)

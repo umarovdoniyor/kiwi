@@ -18,6 +18,7 @@ import {
 import { MemberStatus, MemberType } from '../../libs/enums/member.enums';
 import { Message } from '../../libs/enums/common.enum';
 import { AuthService } from '../auth/auth.service';
+import { MemberUpdate } from '../../libs/dto/member/member.update';
 
 @Injectable()
 export class MemberService implements OnApplicationBootstrap {
@@ -80,8 +81,10 @@ export class MemberService implements OnApplicationBootstrap {
       memberPhone: doc.memberPhone,
       memberFirstName: doc.memberFirstName,
       memberLastName: doc.memberLastName,
+      memberAvatar: doc.memberAvatar,
       memberType: doc.memberType,
       memberStatus: doc.memberStatus,
+      memberAddress: doc.memberAddress,
       isEmailVerified: doc.isEmailVerified,
       isPhoneVerified: doc.isPhoneVerified,
       lastLoginAt: doc.lastLoginAt,
@@ -112,6 +115,9 @@ export class MemberService implements OnApplicationBootstrap {
       };
     } catch (err) {
       console.log('Error, Service.signUp', err.message);
+      if (err?.code === 11000) {
+        throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
+      }
       throw new BadRequestException(err);
     }
   }
@@ -164,8 +170,29 @@ export class MemberService implements OnApplicationBootstrap {
     };
   }
 
-  public async updateMember(): Promise<string> {
-    return await Promise.resolve('Update member successful');
+  public async updateMember(
+    memberId: string,
+    input: MemberUpdate,
+  ): Promise<MemberResponse> {
+    try {
+      const updatedMember = await this.memberModel
+        .findByIdAndUpdate(
+          { _id: memberId, memberStatus: MemberStatus.ACTIVE },
+          input,
+          { new: true },
+        )
+        .exec();
+      if (!updatedMember) {
+        throw new BadRequestException(Message.UPDATE_FAILED);
+      }
+      return this.toMemberResponse(updatedMember);
+    } catch (err) {
+      console.log('Error, Service.updateMember', err.message);
+      if (err?.code === 11000) {
+        throw new BadRequestException(Message.USED_MEMBER_NICK_OR_PHONE);
+      }
+      throw new BadRequestException(err);
+    }
   }
 
   public async getMember(): Promise<string> {

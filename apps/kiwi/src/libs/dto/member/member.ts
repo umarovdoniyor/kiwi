@@ -48,6 +48,9 @@ export class MemberResponse {
   memberStatus: MemberStatus;
 
   @Field({ nullable: true })
+  memberAddress?: string;
+
+  @Field({ nullable: true })
   vendorProfile?: VendorProfileResponse;
 
   @Field()
