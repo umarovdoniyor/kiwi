@@ -16,7 +16,8 @@ export const AuthMember = createParamDecorator(
       return null;
     }
 
-    const authMember: JwtPayload | null = request.body?.authMember || null;
+    const authMember: JwtPayload | null =
+      request.authMember || request.body?.authMember || null;
 
     if (!authMember) {
       return null;

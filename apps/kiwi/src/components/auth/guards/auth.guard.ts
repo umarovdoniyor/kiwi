@@ -41,7 +41,10 @@ export class AuthGuard implements CanActivate {
       }
 
       // Attach verified member to request
-      request.body.authMember = authMember;
+      request.authMember = authMember;
+      if (request.body) {
+        request.body.authMember = authMember;
+      }
       return true;
     }
 

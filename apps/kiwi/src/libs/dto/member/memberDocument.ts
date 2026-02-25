@@ -5,7 +5,7 @@ export interface VendorProfile {
   storeName: string;
   storeDescription: string;
   businessLicense: string;
-  taxId: string;
+  taxId?: string;
 }
 
 export interface MemberDocument extends Document {

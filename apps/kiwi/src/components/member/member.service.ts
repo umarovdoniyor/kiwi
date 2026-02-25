@@ -88,6 +88,7 @@ export class MemberService implements OnApplicationBootstrap {
       memberType: doc.memberType,
       memberStatus: doc.memberStatus,
       memberAddress: doc.memberAddress,
+      vendorProfile: doc.vendorProfile,
       isEmailVerified: doc.isEmailVerified,
       isPhoneVerified: doc.isPhoneVerified,
       lastLoginAt: doc.lastLoginAt,

@@ -12,8 +12,8 @@ export class VendorProfileResponse {
   @Field()
   businessLicense: string;
 
-  @Field()
-  taxId: string;
+  @Field({ nullable: true })
+  taxId?: string;
 }
 
 @ObjectType()

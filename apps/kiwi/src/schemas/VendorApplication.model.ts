@@ -11,9 +11,8 @@ export const VendorApplicationSchema = new Schema(
     },
 
     storeName: { type: String, required: true },
-    storeDescription: { type: String, required: true },
-    businessLicense: { type: String, required: true },
-    taxId: { type: String },
+    description: { type: String, required: true },
+    businessLicenseUrl: { type: String, required: true },
 
     status: {
       type: String,
@@ -24,7 +23,7 @@ export const VendorApplicationSchema = new Schema(
 
     reviewedBy: { type: Schema.Types.ObjectId, ref: 'Member' },
     reviewedAt: { type: Date },
-    rejectionReason: { type: String },
+    rejectionReason: { type: String, default: null },
   },
   { timestamps: true, collection: 'vendor_applications' },
 );
