@@ -34,3 +34,15 @@ export class MemberUpdate {
   @IsString()
   memberAddress?: string;
 }
+
+@InputType()
+export class ChangeMemberPasswordInput {
+  @Field(() => String)
+  @IsString()
+  currentPassword: string;
+
+  @Field(() => String)
+  @IsString()
+  @MinLength(6, { message: 'New password must be at least 6 characters' })
+  newPassword: string;
+}

@@ -18,7 +18,10 @@ import {
 import { MemberStatus, MemberType } from '../../libs/enums/member.enums';
 import { Message } from '../../libs/enums/common.enum';
 import { AuthService } from '../auth/auth.service';
-import { MemberUpdate } from '../../libs/dto/member/member.update';
+import {
+  ChangeMemberPasswordInput,
+  MemberUpdate,
+} from '../../libs/dto/member/member.update';
 
 @Injectable()
 export class MemberService implements OnApplicationBootstrap {
@@ -195,10 +198,7 @@ export class MemberService implements OnApplicationBootstrap {
     }
   }
 
-  public async getMember(): Promise<string> {
-    return await Promise.resolve('Get member successful');
-  }
-
+  // ME
   public async getMemberById(memberId: string): Promise<MemberResponse> {
     try {
       const member = await this.memberModel.findById(memberId).exec();
@@ -242,6 +242,47 @@ export class MemberService implements OnApplicationBootstrap {
       return this.toMemberResponse(member);
     } catch (err) {
       console.log('Error, Service.getMemberProfile', err.message);
+      throw new BadRequestException(err);
+    }
+  }
+
+  public async changeMemberPassword(
+    memberId: string,
+    input: ChangeMemberPasswordInput,
+  ): Promise<MemberResponse> {
+    try {
+      const member = await this.memberModel
+        .findOne({ _id: memberId })
+        .select('+memberPassword')
+        .exec();
+
+      if (!member) {
+        throw new BadRequestException(Message.WRONG_PASSWORD);
+      }
+
+      if (member.memberStatus === MemberStatus.SUSPENDED) {
+        throw new BadRequestException(Message.SUSPENDED_USER);
+      } else if (member.memberStatus === MemberStatus.BLOCKED) {
+        throw new BadRequestException(Message.BLOCKED_USER);
+      }
+
+      const isMatch = await this.authService.comparePasswords(
+        input.currentPassword,
+        member.memberPassword,
+      );
+      if (!isMatch) {
+        throw new BadRequestException(Message.WRONG_PASSWORD);
+      }
+
+      const hashedNewPassword = await this.authService.hashPassword(
+        input.newPassword,
+      );
+      member.memberPassword = hashedNewPassword;
+      await member.save();
+
+      return this.toMemberResponse(member);
+    } catch (err) {
+      console.log('Error, Service.changeMemberPassword', err.message);
       throw new BadRequestException(err);
     }
   }

@@ -9,7 +9,10 @@ import {
   MemberAuthResponse,
   MemberResponse,
 } from '../../libs/dto/member/member';
-import { MemberUpdate } from '../../libs/dto/member/member.update';
+import {
+  ChangeMemberPasswordInput,
+  MemberUpdate,
+} from '../../libs/dto/member/member.update';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
 import type { JwtPayload } from '../../libs/types/common';
@@ -61,10 +64,14 @@ export class MemberResolver {
     return await this.memberService.updateMember(memberId, input);
   }
 
-  @Query(() => String)
-  public async getMember(): Promise<string> {
-    console.log('Query: getMember');
-    return await this.memberService.getMember();
+  @UseGuards(AuthGuard)
+  @Mutation(() => MemberResponse)
+  public async changeMemberPassword(
+    @Args('input') input: ChangeMemberPasswordInput,
+    @AuthMember('sub') memberId: string,
+  ): Promise<MemberResponse> {
+    console.log('Mutation: changeMemberPassword');
+    return await this.memberService.changeMemberPassword(memberId, input);
   }
 
   /** ADMIN */
