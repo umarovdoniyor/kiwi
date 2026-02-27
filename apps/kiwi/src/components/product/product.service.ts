@@ -15,6 +15,8 @@ import {
 import { ProductStatus } from '../../libs/enums/product.enum';
 import { CategoryStatus } from '../../libs/enums/product-category.enum';
 import { MemberType } from '../../libs/enums/member.enums';
+import { LikeGroup } from '../../libs/enums/like.enum';
+import { ViewGroup } from '../../libs/enums/view.enum';
 import { Message } from '../../libs/enums/common.enum';
 import type { JwtPayload } from '../../libs/types/common';
 
@@ -25,6 +27,10 @@ export class ProductService {
     private readonly productModel: Model<any>,
     @InjectModel('Category')
     private readonly categoryModel: Model<any>,
+    @InjectModel('Like')
+    private readonly likeModel: Model<any>,
+    @InjectModel('View')
+    private readonly viewModel: Model<any>,
   ) {}
 
   private toProductResponse(product: any): ProductResponse {
@@ -48,6 +54,8 @@ export class ProductService {
       views: product.views,
       likes: product.likes,
       ordersCount: product.ordersCount,
+      meLiked: false,
+      meViewed: false,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     };
@@ -230,7 +238,31 @@ export class ProductService {
         throw new BadRequestException(Message.NO_DATA_FOUND);
       }
 
-      return this.toProductResponse(product);
+      const response = this.toProductResponse(product);
+
+      if (authMember?.sub) {
+        const [liked, viewed] = await Promise.all([
+          this.likeModel
+            .exists({
+              memberId: authMember.sub,
+              likeRefId: product._id,
+              likeGroup: LikeGroup.PRODUCT,
+            })
+            .exec(),
+          this.viewModel
+            .exists({
+              memberId: authMember.sub,
+              viewRefId: product._id,
+              viewGroup: ViewGroup.PRODUCT,
+            })
+            .exec(),
+        ]);
+
+        response.meLiked = !!liked;
+        response.meViewed = !!viewed;
+      }
+
+      return response;
     } catch (err) {
       console.log('Error, Service.getProductById', err.message);
       throw new BadRequestException(err.message || Message.NO_DATA_FOUND);

@@ -4,6 +4,8 @@ import { ProductService } from './product.service';
 import { ProductResolver } from './product.resolver';
 import { ProductSchema } from '../../schemas/Product.model';
 import { CategorySchema } from '../../schemas/Product-Category.model';
+import LikeSchema from '../../schemas/Like.model';
+import ViewSchema from '../../schemas/View.model';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -12,6 +14,8 @@ import { AuthModule } from '../auth/auth.module';
     MongooseModule.forFeature([
       { name: 'Product', schema: ProductSchema },
       { name: 'Category', schema: CategorySchema },
+      { name: 'Like', schema: LikeSchema },
+      { name: 'View', schema: ViewSchema },
     ]),
   ],
   providers: [ProductService, ProductResolver],

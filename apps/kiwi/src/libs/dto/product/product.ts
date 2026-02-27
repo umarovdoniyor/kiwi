@@ -251,6 +251,12 @@ export class ProductResponse {
   @Field(() => Int)
   ordersCount: number;
 
+  @Field(() => Boolean)
+  meLiked: boolean;
+
+  @Field(() => Boolean)
+  meViewed: boolean;
+
   @Field(() => Date)
   createdAt: Date;
 
