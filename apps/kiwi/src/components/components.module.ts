@@ -7,6 +7,7 @@ import { ViewModule } from './view/view.module';
 import { FollowModule } from './follow/follow.module';
 import { OrderModule } from './order/order.module';
 import { VendorApplicationModule } from './vendor-application/vendor-application.module';
+import { ProductCategoryModule } from './product-category/product-category.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { VendorApplicationModule } from './vendor-application/vendor-application
     ViewModule,
     FollowModule,
     VendorApplicationModule,
+    ProductCategoryModule,
   ],
 })
 export class ComponentsModule {}
