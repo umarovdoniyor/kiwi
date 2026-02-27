@@ -39,7 +39,10 @@ export class WithoutGuard implements CanActivate {
       }
 
       // Attach member (null if not authenticated)
-      request.body.authMember = authMember;
+      request.authMember = authMember;
+      if (request.body) {
+        request.body.authMember = authMember;
+      }
       console.debug(
         'memberEmail[without] =>',
         authMember?.memberEmail ?? 'none (anonymous)',

@@ -124,6 +124,31 @@ export class RemoveProductInput {
 }
 
 @InputType()
+export class ProductsInquiry {
+  @Field(() => Int, { defaultValue: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number;
+
+  @Field(() => Int, { defaultValue: 12 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsMongoId()
+  categoryId?: string;
+}
+
+@InputType()
 export class MyProductsInquiry {
   @Field(() => Int, { defaultValue: 1 })
   @Type(() => Number)
@@ -146,6 +171,25 @@ export class MyProductsInquiry {
   @IsOptional()
   @IsString()
   search?: string;
+}
+
+@InputType()
+export class AdminProductsInquiry extends MyProductsInquiry {
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsMongoId()
+  memberId?: string;
+}
+
+@InputType()
+export class UpdateProductStatusByAdminInput {
+  @Field(() => String)
+  @IsMongoId()
+  productId: string;
+
+  @Field(() => ProductStatus)
+  @IsEnum(ProductStatus)
+  status: ProductStatus;
 }
 
 @ObjectType()
