@@ -8,8 +8,10 @@ import {
   PartialType,
 } from '@nestjs/graphql';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsMongoId,
@@ -17,12 +19,17 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Max,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ProductStatus, ProductUnit } from '../../enums/product.enum';
+import {
+  ProductSortBy,
+  ProductStatus,
+  ProductUnit,
+} from '../../enums/product.enum';
 
 @InputType()
 export class CreateProductInput {
@@ -124,7 +131,7 @@ export class RemoveProductInput {
 }
 
 @InputType()
-export class ProductsInquiry {
+export class CatalogProductsInquiry {
   @Field(() => Int, { defaultValue: 1 })
   @Type(() => Number)
   @IsInt()
@@ -135,6 +142,7 @@ export class ProductsInquiry {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(50)
   limit: number;
 
   @Field(() => String, { nullable: true })
@@ -142,10 +150,81 @@ export class ProductsInquiry {
   @IsString()
   search?: string;
 
+  @Field(() => [String], { nullable: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsMongoId({ each: true })
+  categoryIds?: string[];
+
   @Field(() => String, { nullable: true })
   @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @Field(() => Number, { nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  minPrice?: number;
+
+  @Field(() => Number, { nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  maxPrice?: number;
+
+  @Field(() => Boolean, { nullable: true })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  inStock?: boolean;
+
+  @Field(() => ProductSortBy, { nullable: true })
+  @IsOptional()
+  @IsEnum(ProductSortBy)
+  sortBy?: ProductSortBy;
+}
+
+@InputType()
+export class FeaturedProductsInquiry {
+  @Field(() => Int, { defaultValue: 8 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit: number;
+}
+
+@InputType()
+export class RelatedProductsInquiry {
+  @Field(() => String)
   @IsMongoId()
-  categoryId?: string;
+  productId: string;
+
+  @Field(() => Int, { defaultValue: 8 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit: number;
+}
+
+@InputType()
+export class SearchSuggestionsInput {
+  @Field(() => String)
+  @IsString()
+  @MinLength(1)
+  keyword: string;
+
+  @Field(() => Int, { defaultValue: 6 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(8)
+  limit: number;
 }
 
 @InputType()
@@ -193,7 +272,64 @@ export class UpdateProductStatusByAdminInput {
 }
 
 @ObjectType()
-export class ProductResponse {
+export class ProductCard {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  title: string;
+
+  @Field(() => String)
+  slug: string;
+
+  @Field(() => String, { nullable: true })
+  thumbnail?: string;
+
+  @Field(() => Number)
+  price: number;
+
+  @Field(() => Number, { nullable: true })
+  salePrice?: number;
+
+  @Field(() => Int)
+  stockQty: number;
+
+  @Field(() => ProductStatus)
+  status: ProductStatus;
+
+  @Field(() => Int)
+  likes: number;
+
+  @Field(() => Int)
+  views: number;
+
+  @Field(() => Date)
+  createdAt: Date;
+}
+
+@ObjectType()
+export class ProductVendor {
+  @Field(() => String)
+  _id: string;
+
+  @Field(() => String, { nullable: true })
+  memberNickname?: string;
+
+  @Field(() => String, { nullable: true })
+  memberFirstName?: string;
+
+  @Field(() => String, { nullable: true })
+  memberLastName?: string;
+
+  @Field(() => String, { nullable: true })
+  memberAvatar?: string;
+
+  @Field(() => String)
+  memberType: string;
+}
+
+@ObjectType()
+export class ProductDetail {
   @Field(() => ID)
   _id: string;
 
@@ -204,7 +340,10 @@ export class ProductResponse {
   title: string;
 
   @Field(() => String)
-  description: string;
+  slug: string;
+
+  @Field(() => String, { nullable: true })
+  description?: string;
 
   @Field(() => [String])
   categoryIds: string[];
@@ -215,8 +354,8 @@ export class ProductResponse {
   @Field(() => String, { nullable: true })
   sku?: string;
 
-  @Field(() => ProductUnit)
-  unit: ProductUnit;
+  @Field(() => String)
+  unit: string;
 
   @Field(() => Number)
   price: number;
@@ -236,8 +375,8 @@ export class ProductResponse {
   @Field(() => [String])
   images: string[];
 
-  @Field(() => String)
-  thumbnail: string;
+  @Field(() => String, { nullable: true })
+  thumbnail?: string;
 
   @Field(() => ProductStatus)
   status: ProductStatus;
@@ -250,6 +389,9 @@ export class ProductResponse {
 
   @Field(() => Int)
   ordersCount: number;
+
+  @Field(() => ProductVendor, { nullable: true })
+  vendor?: ProductVendor;
 
   @Field(() => Boolean)
   meLiked: boolean;
@@ -265,6 +407,24 @@ export class ProductResponse {
 }
 
 @ObjectType()
+export class ProductResponse extends ProductDetail {}
+
+@ObjectType()
+export class SearchSuggestion {
+  @Field(() => String)
+  _id: string;
+
+  @Field(() => String)
+  title: string;
+
+  @Field(() => String)
+  slug: string;
+
+  @Field(() => String, { nullable: true })
+  thumbnail?: string;
+}
+
+@ObjectType()
 export class MetaCounter {
   @Field(() => Int)
   total: number;
@@ -274,6 +434,15 @@ export class MetaCounter {
 export class MyProductsResponse {
   @Field(() => [ProductResponse])
   list: ProductResponse[];
+
+  @Field(() => MetaCounter)
+  metaCounter: MetaCounter;
+}
+
+@ObjectType()
+export class CatalogProducts {
+  @Field(() => [ProductCard])
+  list: ProductCard[];
 
   @Field(() => MetaCounter)
   metaCounter: MetaCounter;

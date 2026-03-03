@@ -15,5 +15,13 @@ export enum ProductUnit {
   PACK = 'PACK',
 }
 
+export enum ProductSortBy {
+  NEWEST = 'NEWEST',
+  PRICE_ASC = 'PRICE_ASC',
+  PRICE_DESC = 'PRICE_DESC',
+  POPULAR = 'POPULAR',
+}
+
 registerEnumType(ProductStatus, { name: 'ProductStatus' });
 registerEnumType(ProductUnit, { name: 'ProductUnit' });
+registerEnumType(ProductSortBy, { name: 'ProductSortBy' });
