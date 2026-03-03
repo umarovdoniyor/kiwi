@@ -8,6 +8,7 @@ import { FollowModule } from './follow/follow.module';
 import { OrderModule } from './order/order.module';
 import { VendorApplicationModule } from './vendor-application/vendor-application.module';
 import { ProductCategoryModule } from './product-category/product-category.module';
+import { UploaderModule } from './uploader/uploader.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ProductCategoryModule } from './product-category/product-category.modul
     FollowModule,
     VendorApplicationModule,
     ProductCategoryModule,
+    UploaderModule,
   ],
 })
 export class ComponentsModule {}
