@@ -3,12 +3,19 @@ import { UseGuards } from '@nestjs/common';
 import { ProductService } from './product.service';
 import {
   AdminProductsInquiry,
+  CatalogProducts,
+  CatalogProductsInquiry,
   CreateProductInput,
+  FeaturedProductsInquiry,
   MyProductsInquiry,
   MyProductsResponse,
+  ProductCard,
+  ProductDetail,
   ProductResponse,
-  ProductsInquiry,
+  RelatedProductsInquiry,
   RemoveProductInput,
+  SearchSuggestion,
+  SearchSuggestionsInput,
   UpdateProductInput,
   UpdateProductStatusByAdminInput,
 } from '../../libs/dto/product/product';
@@ -57,20 +64,44 @@ export class ProductResolver {
     return await this.productService.removeProduct(memberId, input);
   }
 
-  @Query(() => MyProductsResponse)
+  @Query(() => CatalogProducts)
   public async getProducts(
-    @Args('input', { nullable: true }) input?: ProductsInquiry,
-  ): Promise<MyProductsResponse> {
+    @Args('input') input: CatalogProductsInquiry,
+  ): Promise<CatalogProducts> {
     console.log('Query: getProducts');
     return await this.productService.getProducts(input);
   }
 
+  @Query(() => [ProductCard])
+  public async getFeaturedProducts(
+    @Args('input') input: FeaturedProductsInquiry,
+  ): Promise<ProductCard[]> {
+    console.log('Query: getFeaturedProducts');
+    return await this.productService.getFeaturedProducts(input);
+  }
+
+  @Query(() => [ProductCard])
+  public async getRelatedProducts(
+    @Args('input') input: RelatedProductsInquiry,
+  ): Promise<ProductCard[]> {
+    console.log('Query: getRelatedProducts');
+    return await this.productService.getRelatedProducts(input);
+  }
+
+  @Query(() => [SearchSuggestion])
+  public async searchSuggestions(
+    @Args('input') input: SearchSuggestionsInput,
+  ): Promise<SearchSuggestion[]> {
+    console.log('Query: searchSuggestions');
+    return await this.productService.searchSuggestions(input);
+  }
+
   @UseGuards(WithoutGuard)
-  @Query(() => ProductResponse)
+  @Query(() => ProductDetail)
   public async getProductById(
     @Args('productId') productId: string,
     @AuthMember() authMember?: JwtPayload,
-  ): Promise<ProductResponse> {
+  ): Promise<ProductDetail> {
     console.log('Query: getProductById');
     return await this.productService.getProductById(productId, authMember);
   }

@@ -1,20 +1,27 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import {
   AdminProductsInquiry,
+  CatalogProducts,
+  CatalogProductsInquiry,
   CreateProductInput,
+  FeaturedProductsInquiry,
   MyProductsInquiry,
   MyProductsResponse,
+  ProductCard,
+  ProductDetail,
   ProductResponse,
-  ProductsInquiry,
+  ProductVendor,
+  RelatedProductsInquiry,
   RemoveProductInput,
+  SearchSuggestion,
+  SearchSuggestionsInput,
   UpdateProductInput,
   UpdateProductStatusByAdminInput,
 } from '../../libs/dto/product/product';
-import { ProductStatus } from '../../libs/enums/product.enum';
+import { ProductSortBy, ProductStatus } from '../../libs/enums/product.enum';
 import { CategoryStatus } from '../../libs/enums/product-category.enum';
-import { MemberType } from '../../libs/enums/member.enums';
 import { LikeGroup } from '../../libs/enums/like.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { Message } from '../../libs/enums/common.enum';
@@ -31,15 +38,115 @@ export class ProductService {
     private readonly likeModel: Model<any>,
     @InjectModel('View')
     private readonly viewModel: Model<any>,
+    @InjectModel('Member')
+    private readonly memberModel: Model<any>,
   ) {}
 
-  private toProductResponse(product: any): ProductResponse {
+  private readonly maxCatalogLimit = 50;
+  private readonly defaultSuggestionLimit = 6;
+  private readonly maxSuggestionLimit = 8;
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private normalizeSlug(value: string): string {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  private buildFallbackSlug(product: any): string {
+    const base = this.normalizeSlug(product?.title || 'product') || 'product';
+    const suffix = product?._id?.toString()?.slice(-6) || 'item';
+    return `${base}-${suffix}`;
+  }
+
+  private async generateUniqueSlug(
+    title: string,
+    excludeProductId?: string,
+  ): Promise<string> {
+    const base = this.normalizeSlug(title) || 'product';
+
+    let candidate = base;
+    let attempt = 0;
+    let exists = true;
+
+    while (exists) {
+      exists = !!(await this.productModel
+        .exists({
+          slug: candidate,
+          ...(excludeProductId
+            ? { _id: { $ne: new Types.ObjectId(excludeProductId) } }
+            : {}),
+        })
+        .exec());
+
+      if (!exists) {
+        return candidate;
+      }
+
+      attempt += 1;
+      candidate = `${base}-${attempt}`;
+    }
+
+    return candidate;
+  }
+
+  private effectivePriceExpression(): any {
+    return {
+      $cond: [
+        {
+          $and: [
+            { $ne: ['$salePrice', null] },
+            { $lt: ['$salePrice', '$price'] },
+          ],
+        },
+        '$salePrice',
+        '$price',
+      ],
+    };
+  }
+
+  private toProductCard(product: any): ProductCard {
+    return {
+      _id: product._id.toString(),
+      title: product.title,
+      slug: product.slug || this.buildFallbackSlug(product),
+      thumbnail: product.thumbnail || null,
+      price: product.price,
+      salePrice: product.salePrice,
+      stockQty: product.stockQty,
+      status: product.status,
+      likes: product.likes,
+      views: product.views,
+      createdAt: product.createdAt,
+    };
+  }
+
+  private toProductVendor(vendor: any): ProductVendor {
+    return {
+      _id: vendor._id.toString(),
+      memberNickname: vendor.memberNickname,
+      memberFirstName: vendor.memberFirstName,
+      memberLastName: vendor.memberLastName,
+      memberAvatar: vendor.memberAvatar,
+      memberType: vendor.memberType,
+    };
+  }
+
+  private toProductDetail(product: any, vendor?: any): ProductDetail {
     return {
       _id: product._id.toString(),
       memberId: product.memberId.toString(),
       title: product.title,
+      slug: product.slug || this.buildFallbackSlug(product),
       description: product.description,
-      categoryIds: product.categoryIds.map((id: any) => id.toString()),
+      categoryIds: (product.categoryIds || []).map((id: any) => id.toString()),
       brand: product.brand,
       sku: product.sku,
       unit: product.unit,
@@ -47,18 +154,23 @@ export class ProductService {
       salePrice: product.salePrice,
       stockQty: product.stockQty,
       minOrderQty: product.minOrderQty,
-      tags: product.tags,
-      images: product.images,
-      thumbnail: product.thumbnail,
+      tags: product.tags || [],
+      images: product.images || [],
+      thumbnail: product.thumbnail || null,
       status: product.status,
       views: product.views,
       likes: product.likes,
-      ordersCount: product.ordersCount,
       meLiked: false,
       meViewed: false,
+      ordersCount: product.ordersCount,
+      vendor: vendor ? this.toProductVendor(vendor) : undefined,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     };
+  }
+
+  private toProductResponse(product: any): ProductResponse {
+    return this.toProductDetail(product);
   }
 
   private async validateCategoryIds(categoryIds?: string[]): Promise<void> {
@@ -94,6 +206,24 @@ export class ProductService {
     };
   }
 
+  private normalizeCatalogLimit(limit: number): number {
+    return Math.min(Math.max(limit || 12, 1), this.maxCatalogLimit);
+  }
+
+  private buildCatalogSortStage(sortBy?: ProductSortBy): any {
+    switch (sortBy || ProductSortBy.NEWEST) {
+      case ProductSortBy.PRICE_ASC:
+        return { effectivePrice: 1, createdAt: -1, _id: 1 };
+      case ProductSortBy.PRICE_DESC:
+        return { effectivePrice: -1, createdAt: -1, _id: 1 };
+      case ProductSortBy.POPULAR:
+        return { popularityScore: -1, createdAt: -1, _id: 1 };
+      case ProductSortBy.NEWEST:
+      default:
+        return { createdAt: -1, _id: 1 };
+    }
+  }
+
   public async createProduct(
     memberId: string,
     input: CreateProductInput,
@@ -101,8 +231,11 @@ export class ProductService {
     try {
       await this.validateCategoryIds(input.categoryIds);
 
+      const slug = await this.generateUniqueSlug(input.title);
+
       const newProduct = await this.productModel.create({
         ...input,
+        slug,
         memberId,
         status: input.status ?? ProductStatus.DRAFT,
         deletedAt: null,
@@ -135,6 +268,13 @@ export class ProductService {
 
       if (updateData.categoryIds) {
         await this.validateCategoryIds(updateData.categoryIds);
+      }
+
+      if (updateData.title && updateData.title !== existingProduct.title) {
+        updateData['slug'] = await this.generateUniqueSlug(
+          updateData.title,
+          productId,
+        );
       }
 
       const updatedProduct = await this.productModel
@@ -180,33 +320,132 @@ export class ProductService {
   }
 
   public async getProducts(
-    input?: ProductsInquiry,
-  ): Promise<MyProductsResponse> {
+    input: CatalogProductsInquiry,
+  ): Promise<CatalogProducts> {
     try {
+      if (
+        input?.minPrice !== undefined &&
+        input?.maxPrice !== undefined &&
+        input.minPrice > input.maxPrice
+      ) {
+        throw new BadRequestException(
+          'minPrice cannot be greater than maxPrice',
+        );
+      }
+
       const page = input?.page ?? 1;
-      const limit = input?.limit ?? 12;
+      const limit = this.normalizeCatalogLimit(input?.limit ?? 12);
       const skip = (page - 1) * limit;
 
-      const filter: any = {
+      const baseMatch: any = {
         status: ProductStatus.PUBLISHED,
         deletedAt: null,
-        ...(input?.categoryId ? { categoryIds: input.categoryId } : {}),
-        ...this.buildSearchFilter(input?.search),
       };
 
-      const [products, total] = await Promise.all([
-        this.productModel
-          .find(filter)
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .exec(),
-        this.productModel.countDocuments(filter).exec(),
-      ]);
+      if (input?.search?.trim()) {
+        const keyword = input.search.trim();
+        baseMatch.$or = [
+          { title: { $regex: keyword, $options: 'i' } },
+          { description: { $regex: keyword, $options: 'i' } },
+          { tags: { $regex: keyword, $options: 'i' } },
+          { brand: { $regex: keyword, $options: 'i' } },
+        ];
+      }
+
+      if (input?.categoryIds?.length) {
+        baseMatch.categoryIds = {
+          $in: input.categoryIds.map((id) => new Types.ObjectId(id)),
+        };
+      }
+
+      if (input?.brand?.trim()) {
+        baseMatch.brand = { $regex: input.brand.trim(), $options: 'i' };
+      }
+
+      if (input?.inStock === true) {
+        baseMatch.stockQty = { $gt: 0 };
+      }
+
+      if (input?.inStock === false) {
+        baseMatch.stockQty = { $lte: 0 };
+      }
+
+      const effectivePriceExpr = this.effectivePriceExpression();
+      const sortStage = this.buildCatalogSortStage(input?.sortBy);
+
+      const priceMatch: any = {};
+      if (input?.minPrice !== undefined) {
+        priceMatch.$gte = input.minPrice;
+      }
+      if (input?.maxPrice !== undefined) {
+        priceMatch.$lte = input.maxPrice;
+      }
+
+      const pipeline: any[] = [
+        { $match: baseMatch },
+        {
+          $addFields: {
+            effectivePrice: effectivePriceExpr,
+            popularityScore: {
+              $add: [
+                { $multiply: ['$ordersCount', 5] },
+                { $multiply: ['$likes', 2] },
+                { $multiply: ['$views', 0.2] },
+              ],
+            },
+          },
+        },
+      ];
+
+      if (Object.keys(priceMatch).length > 0) {
+        pipeline.push({
+          $match: {
+            effectivePrice: priceMatch,
+          },
+        });
+      }
+
+      pipeline.push(
+        {
+          $facet: {
+            list: [
+              { $sort: sortStage },
+              { $skip: skip },
+              { $limit: limit },
+              {
+                $project: {
+                  _id: 1,
+                  title: 1,
+                  slug: 1,
+                  thumbnail: 1,
+                  price: 1,
+                  salePrice: 1,
+                  stockQty: 1,
+                  status: 1,
+                  likes: 1,
+                  views: 1,
+                  createdAt: 1,
+                },
+              },
+            ],
+            total: [{ $count: 'count' }],
+          },
+        },
+        {
+          $project: {
+            list: 1,
+            total: { $ifNull: [{ $arrayElemAt: ['$total.count', 0] }, 0] },
+          },
+        },
+      );
+
+      const [result] = await this.productModel.aggregate(pipeline).exec();
 
       return {
-        list: products.map((product: any) => this.toProductResponse(product)),
-        metaCounter: { total },
+        list: (result?.list || []).map((product: any) =>
+          this.toProductCard(product),
+        ),
+        metaCounter: { total: result?.total || 0 },
       };
     } catch (err) {
       console.log('Error, Service.getProducts', err.message);
@@ -214,14 +453,230 @@ export class ProductService {
     }
   }
 
+  public async getFeaturedProducts(
+    input: FeaturedProductsInquiry,
+  ): Promise<ProductCard[]> {
+    try {
+      const limit = this.normalizeCatalogLimit(input?.limit ?? 8);
+
+      const products = await this.productModel
+        .aggregate([
+          {
+            $match: {
+              status: ProductStatus.PUBLISHED,
+              deletedAt: null,
+            },
+          },
+          {
+            $addFields: {
+              popularityScore: {
+                $add: [
+                  { $multiply: ['$ordersCount', 5] },
+                  { $multiply: ['$likes', 2] },
+                  { $multiply: ['$views', 0.2] },
+                ],
+              },
+            },
+          },
+          { $sort: { popularityScore: -1, createdAt: -1, _id: 1 } },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              slug: 1,
+              thumbnail: 1,
+              price: 1,
+              salePrice: 1,
+              stockQty: 1,
+              status: 1,
+              likes: 1,
+              views: 1,
+              createdAt: 1,
+            },
+          },
+        ])
+        .exec();
+
+      return products.map((product: any) => this.toProductCard(product));
+    } catch (err) {
+      console.log('Error, Service.getFeaturedProducts', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getRelatedProducts(
+    input: RelatedProductsInquiry,
+  ): Promise<ProductCard[]> {
+    try {
+      const sourceProduct = await this.productModel
+        .findOne({
+          _id: input.productId,
+          status: ProductStatus.PUBLISHED,
+          deletedAt: null,
+        })
+        .exec();
+
+      if (!sourceProduct) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      const limit = this.normalizeCatalogLimit(input?.limit ?? 8);
+
+      const match: any = {
+        _id: { $ne: sourceProduct._id },
+        status: ProductStatus.PUBLISHED,
+        deletedAt: null,
+      };
+
+      if (sourceProduct.categoryIds?.length) {
+        match.categoryIds = { $in: sourceProduct.categoryIds };
+      } else if (sourceProduct.brand) {
+        match.brand = sourceProduct.brand;
+      }
+
+      const products = await this.productModel
+        .aggregate([
+          { $match: match },
+          {
+            $addFields: {
+              overlapCategories: {
+                $size: {
+                  $setIntersection: [
+                    '$categoryIds',
+                    sourceProduct.categoryIds || [],
+                  ],
+                },
+              },
+              brandBonus: {
+                $cond: [{ $eq: ['$brand', sourceProduct.brand || ''] }, 1, 0],
+              },
+              popularityScore: {
+                $add: [
+                  { $multiply: ['$ordersCount', 5] },
+                  { $multiply: ['$likes', 2] },
+                  { $multiply: ['$views', 0.2] },
+                ],
+              },
+            },
+          },
+          {
+            $addFields: {
+              relatedScore: {
+                $add: [
+                  { $multiply: ['$overlapCategories', 10] },
+                  { $multiply: ['$brandBonus', 5] },
+                  '$popularityScore',
+                ],
+              },
+            },
+          },
+          { $sort: { relatedScore: -1, createdAt: -1, _id: 1 } },
+          { $limit: limit },
+          {
+            $project: {
+              _id: 1,
+              title: 1,
+              slug: 1,
+              thumbnail: 1,
+              price: 1,
+              salePrice: 1,
+              stockQty: 1,
+              status: 1,
+              likes: 1,
+              views: 1,
+              createdAt: 1,
+            },
+          },
+        ])
+        .exec();
+
+      return products.map((product: any) => this.toProductCard(product));
+    } catch (err) {
+      console.log('Error, Service.getRelatedProducts', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async searchSuggestions(
+    input: SearchSuggestionsInput,
+  ): Promise<SearchSuggestion[]> {
+    try {
+      const keyword = (input?.keyword || '').trim();
+
+      if (keyword.length < 2) {
+        throw new BadRequestException('Keyword must be at least 2 characters');
+      }
+
+      const limit = Math.min(
+        Math.max(input?.limit ?? this.defaultSuggestionLimit, 1),
+        this.maxSuggestionLimit,
+      );
+
+      const safeKeyword = this.escapeRegex(keyword);
+
+      const baseMatch = {
+        status: ProductStatus.PUBLISHED,
+        deletedAt: null,
+      };
+
+      const projection = {
+        _id: 1,
+        title: 1,
+        slug: 1,
+        thumbnail: 1,
+      };
+
+      const picked = new Map<string, SearchSuggestion>();
+
+      const pickFrom = async (criteria: any): Promise<void> => {
+        if (picked.size >= limit) {
+          return;
+        }
+
+        const docs = await this.productModel
+          .find({ ...baseMatch, ...criteria }, projection)
+          .sort({ createdAt: -1, _id: 1 })
+          .limit(limit)
+          .exec();
+
+        for (const doc of docs) {
+          if (picked.size >= limit) {
+            break;
+          }
+
+          const id = doc._id.toString();
+          if (!picked.has(id)) {
+            picked.set(id, {
+              _id: id,
+              title: doc.title,
+              slug: doc.slug || this.buildFallbackSlug(doc),
+              thumbnail: doc.thumbnail || null,
+            });
+          }
+        }
+      };
+
+      await pickFrom({ title: { $regex: `^${safeKeyword}`, $options: 'i' } });
+      await pickFrom({ title: { $regex: safeKeyword, $options: 'i' } });
+      await pickFrom({ brand: { $regex: safeKeyword, $options: 'i' } });
+
+      return Array.from(picked.values());
+    } catch (err) {
+      console.log('Error, Service.searchSuggestions', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
   public async getProductById(
     productId: string,
     authMember?: JwtPayload,
-  ): Promise<ProductResponse> {
+  ): Promise<ProductDetail> {
     try {
       const product = await this.productModel
         .findOne({
           _id: productId,
+          status: ProductStatus.PUBLISHED,
           deletedAt: null,
         })
         .exec();
@@ -230,15 +685,14 @@ export class ProductService {
         throw new BadRequestException(Message.NO_DATA_FOUND);
       }
 
-      const isPublished = product.status === ProductStatus.PUBLISHED;
-      const isOwner = authMember?.sub === product.memberId.toString();
-      const isAdmin = authMember?.memberType === MemberType.ADMIN;
+      const vendor = await this.memberModel
+        .findById(product.memberId)
+        .select(
+          '_id memberNickname memberFirstName memberLastName memberAvatar memberType',
+        )
+        .exec();
 
-      if (!isPublished && !isOwner && !isAdmin) {
-        throw new BadRequestException(Message.NO_DATA_FOUND);
-      }
-
-      const response = this.toProductResponse(product);
+      const response = this.toProductDetail(product, vendor || null);
 
       if (authMember?.sub) {
         const [liked, viewed] = await Promise.all([
@@ -403,6 +857,4 @@ export class ProductService {
       throw new BadRequestException(err.message || Message.REMOVE_FAILED);
     }
   }
-
-  // END OF CLASS
 }
