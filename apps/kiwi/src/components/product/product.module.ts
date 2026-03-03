@@ -6,6 +6,7 @@ import { ProductSchema } from '../../schemas/Product.model';
 import { CategorySchema } from '../../schemas/Product-Category.model';
 import LikeSchema from '../../schemas/Like.model';
 import ViewSchema from '../../schemas/View.model';
+import { MemberSchema } from '../../schemas/Member.model';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: 'Category', schema: CategorySchema },
       { name: 'Like', schema: LikeSchema },
       { name: 'View', schema: ViewSchema },
+      { name: 'Member', schema: MemberSchema },
     ]),
   ],
   providers: [ProductService, ProductResolver],

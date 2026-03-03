@@ -17,6 +17,12 @@ export const ProductSchema = new Schema(
       minlength: 3,
       maxlength: 120,
     },
+    slug: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
     description: {
       type: String,
       required: true,
@@ -64,4 +70,5 @@ export const ProductSchema = new Schema(
 ProductSchema.index({ memberId: 1, createdAt: -1 });
 ProductSchema.index({ memberId: 1, status: 1 });
 ProductSchema.index({ memberId: 1, sku: 1 }, { unique: true, sparse: true });
+ProductSchema.index({ slug: 1 }, { unique: true, sparse: true });
 ProductSchema.index({ title: 'text', description: 'text', tags: 'text' });
