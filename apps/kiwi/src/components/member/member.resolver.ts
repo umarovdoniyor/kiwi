@@ -6,8 +6,12 @@ import {
   MemberSignUpInput,
 } from '../../libs/dto/member/member.input';
 import {
+  MemberByAdmin,
   MemberAuthResponse,
+  MembersByAdmin,
+  MembersInquiryByAdminInput,
   MemberResponse,
+  UpdateMemberStatusByAdminInput,
 } from '../../libs/dto/member/member';
 import {
   ChangeMemberPasswordInput,
@@ -15,6 +19,9 @@ import {
 } from '../../libs/dto/member/member.update';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { MemberType } from '../../libs/enums/member.enums';
 import type { JwtPayload } from '../../libs/types/common';
 
 @Resolver()
@@ -75,18 +82,24 @@ export class MemberResolver {
   }
 
   /** ADMIN */
-
-  // Authorized admin only
-  @Mutation(() => String)
-  public async getAllMembersByAdmin(): Promise<string> {
-    console.log('Mutation: getAllMembersByAdmin');
-    return await this.memberService.getAllMembersByAdmin();
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Query(() => MembersByAdmin)
+  public async getMembersByAdmin(
+    @Args('input') input: MembersInquiryByAdminInput,
+  ): Promise<MembersByAdmin> {
+    console.log('Query: getMembersByAdmin');
+    return await this.memberService.getMembersByAdmin(input);
   }
 
-  @Mutation(() => String)
-  public async updateMemberByAdmin(): Promise<string> {
-    console.log('Mutation: updateMemberByAdmin');
-    return await this.memberService.updateMemberByAdmin();
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Mutation(() => MemberByAdmin)
+  public async updateMemberStatusByAdmin(
+    @Args('input') input: UpdateMemberStatusByAdminInput,
+  ): Promise<MemberByAdmin> {
+    console.log('Mutation: updateMemberStatusByAdmin');
+    return await this.memberService.updateMemberStatusByAdmin(input);
   }
 
   // END of CLASS

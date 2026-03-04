@@ -7,8 +7,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import {
+  MemberByAdmin,
   MemberAuthResponse,
+  MembersByAdmin,
+  MembersInquiryByAdminInput,
   MemberResponse,
+  UpdateMemberStatusByAdminInput,
 } from '../../libs/dto/member/member';
 import { MemberDocument } from '../../libs/dto/member/memberDocument';
 import {
@@ -92,6 +96,22 @@ export class MemberService implements OnApplicationBootstrap {
       isEmailVerified: doc.isEmailVerified,
       isPhoneVerified: doc.isPhoneVerified,
       lastLoginAt: doc.lastLoginAt,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
+  private toMemberByAdmin(doc: MemberDocument): MemberByAdmin {
+    return {
+      _id: doc._id.toString(),
+      memberEmail: doc.memberEmail,
+      memberPhone: doc.memberPhone,
+      memberNickname: doc.memberNickname,
+      memberFirstName: doc.memberFirstName,
+      memberLastName: doc.memberLastName,
+      memberAvatar: doc.memberAvatar,
+      memberType: doc.memberType,
+      memberStatus: doc.memberStatus,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -289,12 +309,74 @@ export class MemberService implements OnApplicationBootstrap {
   }
 
   /** ADMIN */
-  public async getAllMembersByAdmin(): Promise<string> {
-    return await Promise.resolve('Get all members by admin successful');
+  public async getMembersByAdmin(
+    input: MembersInquiryByAdminInput,
+  ): Promise<MembersByAdmin> {
+    try {
+      const page = input?.page ?? 1;
+      const limit = input?.limit ?? 20;
+      const skip = (page - 1) * limit;
+
+      const filter: any = {
+        ...(input?.status ? { memberStatus: input.status } : {}),
+        ...(input?.type ? { memberType: input.type } : {}),
+      };
+
+      if (input?.search?.trim()) {
+        const search = input.search.trim();
+        filter.$or = [
+          { memberEmail: { $regex: search, $options: 'i' } },
+          { memberPhone: { $regex: search, $options: 'i' } },
+          { memberNickname: { $regex: search, $options: 'i' } },
+          { memberFirstName: { $regex: search, $options: 'i' } },
+          { memberLastName: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      const [members, total] = await Promise.all([
+        this.memberModel
+          .find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.memberModel.countDocuments(filter).exec(),
+      ]);
+
+      return {
+        list: members.map((member) => this.toMemberByAdmin(member)),
+        metaCounter: { total },
+      };
+    } catch (err) {
+      console.log('Error, Service.getMembersByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
   }
 
-  public async updateMemberByAdmin(): Promise<string> {
-    return await Promise.resolve('Update member by admin successful');
+  public async updateMemberStatusByAdmin(
+    input: UpdateMemberStatusByAdminInput,
+  ): Promise<MemberByAdmin> {
+    try {
+      const member = await this.memberModel.findById(input.memberId).exec();
+
+      if (!member) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      member.memberStatus = input.status;
+
+      if (input.reason?.trim()) {
+        member.memberAddress = member.memberAddress
+          ? `${member.memberAddress}\n[ADMIN STATUS NOTE] ${input.reason.trim()}`
+          : `[ADMIN STATUS NOTE] ${input.reason.trim()}`;
+      }
+
+      await member.save();
+      return this.toMemberByAdmin(member);
+    } catch (err) {
+      console.log('Error, Service.updateMemberStatusByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.UPDATE_FAILED);
+    }
   }
 
   // END of CLASS
