@@ -441,3 +441,210 @@ export class CancelMyOrderInput {
   @MaxLength(300)
   reason?: string;
 }
+
+@InputType()
+export class AdminOrdersInquiryInput {
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number;
+
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number;
+
+  @Field(() => OrderStatus, { nullable: true })
+  @IsOptional()
+  @IsEnum(OrderStatus)
+  status?: OrderStatus;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsMongoId()
+  memberId?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsMongoId()
+  vendorId?: string;
+}
+
+@ObjectType()
+export class OrderItemByAdmin {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  orderId: string;
+
+  @Field(() => String)
+  productId: string;
+
+  @Field(() => String, { nullable: true })
+  vendorId?: string;
+
+  @Field(() => Int)
+  quantity: number;
+
+  @Field(() => Number)
+  unitPrice: number;
+
+  @Field(() => Number, { nullable: true })
+  salePrice?: number;
+
+  @Field(() => Number)
+  appliedPrice: number;
+
+  @Field(() => Number)
+  lineTotal: number;
+
+  @Field(() => String)
+  productSnapshotTitle: string;
+
+  @Field(() => String, { nullable: true })
+  productSnapshotThumbnail?: string;
+
+  @Field(() => String, { nullable: true })
+  productSnapshotUnit?: string;
+
+  @Field(() => String, { nullable: true })
+  productSnapshotSku?: string;
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}
+
+@ObjectType()
+export class OrderByAdmin {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  orderNo: string;
+
+  @Field(() => String)
+  memberId: string;
+
+  @Field(() => OrderStatus)
+  status: OrderStatus;
+
+  @Field(() => String)
+  paymentMethod: string;
+
+  @Field(() => String)
+  paymentStatus: string;
+
+  @Field(() => Number)
+  subtotal: number;
+
+  @Field(() => Number)
+  discountAmount: number;
+
+  @Field(() => Number)
+  deliveryFee: number;
+
+  @Field(() => Number)
+  taxAmount: number;
+
+  @Field(() => Number)
+  totalAmount: number;
+
+  @Field(() => String)
+  currency: string;
+
+  @Field(() => String)
+  addressFullName: string;
+
+  @Field(() => String)
+  addressPhone: string;
+
+  @Field(() => String)
+  addressLine1: string;
+
+  @Field(() => String, { nullable: true })
+  addressLine2?: string;
+
+  @Field(() => String)
+  addressCity: string;
+
+  @Field(() => String, { nullable: true })
+  addressState?: string;
+
+  @Field(() => String)
+  addressPostalCode: string;
+
+  @Field(() => String)
+  addressCountry: string;
+
+  @Field(() => String, { nullable: true })
+  note?: string;
+
+  @Field(() => Date)
+  placedAt: Date;
+
+  @Field(() => Date, { nullable: true })
+  canceledAt?: Date;
+
+  @Field(() => Date, { nullable: true })
+  deliveredAt?: Date;
+
+  @Field(() => [OrderItemByAdmin])
+  items: OrderItemByAdmin[];
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}
+
+@ObjectType()
+export class OrdersByAdmin {
+  @Field(() => [OrderByAdmin])
+  list: OrderByAdmin[];
+
+  @Field(() => MetaCounter)
+  metaCounter: MetaCounter;
+}
+
+@InputType()
+export class UpdateOrderStatusByAdminInput {
+  @Field(() => String)
+  @IsMongoId()
+  orderId: string;
+
+  @Field(() => OrderStatus)
+  @IsEnum(OrderStatus)
+  status: OrderStatus;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  note?: string;
+}
+
+@InputType()
+export class CancelOrderByAdminInput {
+  @Field(() => String)
+  @IsMongoId()
+  orderId: string;
+
+  @Field(() => String)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(300)
+  reason: string;
+}

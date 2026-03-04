@@ -3,19 +3,27 @@ import { UseGuards } from '@nestjs/common';
 import { OrderService } from './order.service';
 import {
   AddToCartInput,
+  AdminOrdersInquiryInput,
+  CancelOrderByAdminInput,
   CancelMyOrderInput,
   Cart,
   CheckoutSummary,
   CreateOrderFromCartInput,
   GetMyOrdersInput,
   Order,
+  OrderByAdmin,
+  OrdersByAdmin,
   OrdersByMember,
   RemoveCartItemInput,
+  UpdateOrderStatusByAdminInput,
   UpdateCartItemQtyInput,
   ValidateCartForCheckoutOutput,
 } from '../../libs/dto/order/order';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { MemberType } from '../../libs/enums/member.enums';
 
 @Resolver()
 export class OrderResolver {
@@ -121,5 +129,45 @@ export class OrderResolver {
   ): Promise<Order> {
     console.log('Mutation: cancelMyOrder');
     return await this.orderService.cancelMyOrder(memberId, input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Query(() => OrdersByAdmin)
+  public async getOrdersByAdmin(
+    @Args('input') input: AdminOrdersInquiryInput,
+  ): Promise<OrdersByAdmin> {
+    console.log('Query: getOrdersByAdmin');
+    return await this.orderService.getOrdersByAdmin(input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Query(() => OrderByAdmin, { nullable: true })
+  public async getOrderByIdByAdmin(
+    @Args('orderId') orderId: string,
+  ): Promise<OrderByAdmin | null> {
+    console.log('Query: getOrderByIdByAdmin');
+    return await this.orderService.getOrderByIdByAdmin(orderId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Mutation(() => OrderByAdmin)
+  public async updateOrderStatusByAdmin(
+    @Args('input') input: UpdateOrderStatusByAdminInput,
+  ): Promise<OrderByAdmin> {
+    console.log('Mutation: updateOrderStatusByAdmin');
+    return await this.orderService.updateOrderStatusByAdmin(input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Mutation(() => OrderByAdmin)
+  public async cancelOrderByAdmin(
+    @Args('input') input: CancelOrderByAdminInput,
+  ): Promise<OrderByAdmin> {
+    console.log('Mutation: cancelOrderByAdmin');
+    return await this.orderService.cancelOrderByAdmin(input);
   }
 }

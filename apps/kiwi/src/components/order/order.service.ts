@@ -3,6 +3,8 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model } from 'mongoose';
 import {
   AddToCartInput,
+  AdminOrdersInquiryInput,
+  CancelOrderByAdminInput,
   CancelMyOrderInput,
   Cart,
   CartItem,
@@ -11,9 +13,13 @@ import {
   CreateOrderFromCartInput,
   GetMyOrdersInput,
   Order,
+  OrderByAdmin,
   OrderItem,
+  OrderItemByAdmin,
+  OrdersByAdmin,
   OrdersByMember,
   RemoveCartItemInput,
+  UpdateOrderStatusByAdminInput,
   UpdateCartItemQtyInput,
   ValidateCartForCheckoutOutput,
 } from '../../libs/dto/order/order';
@@ -154,6 +160,26 @@ export class OrderService {
     };
   }
 
+  private toOrderItemByAdmin(item: any): OrderItemByAdmin {
+    return {
+      _id: item._id.toString(),
+      orderId: item.orderId.toString(),
+      productId: item.productId.toString(),
+      vendorId: item.vendorId ? item.vendorId.toString() : null,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      salePrice: item.salePrice,
+      appliedPrice: item.appliedPrice,
+      lineTotal: item.lineTotal,
+      productSnapshotTitle: item.productSnapshotTitle,
+      productSnapshotThumbnail: item.productSnapshotThumbnail,
+      productSnapshotUnit: item.productSnapshotUnit,
+      productSnapshotSku: item.productSnapshotSku,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+  }
+
   private toCartResponse(cart: any, items: any[]): Cart {
     return {
       _id: cart._id.toString(),
@@ -198,6 +224,38 @@ export class OrderService {
       canceledAt: order.canceledAt,
       deliveredAt: order.deliveredAt,
       items: items.map((item) => this.toOrderItemResponse(item)),
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  }
+
+  private toOrderByAdmin(order: any, items: any[]): OrderByAdmin {
+    return {
+      _id: order._id.toString(),
+      orderNo: order.orderNo,
+      memberId: order.memberId.toString(),
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      deliveryFee: order.deliveryFee,
+      taxAmount: order.taxAmount,
+      totalAmount: order.totalAmount,
+      currency: order.currency,
+      addressFullName: order.addressFullName,
+      addressPhone: order.addressPhone,
+      addressLine1: order.addressLine1,
+      addressLine2: order.addressLine2,
+      addressCity: order.addressCity,
+      addressState: order.addressState,
+      addressPostalCode: order.addressPostalCode,
+      addressCountry: order.addressCountry,
+      note: order.note,
+      placedAt: order.placedAt,
+      canceledAt: order.canceledAt,
+      deliveredAt: order.deliveredAt,
+      items: items.map((item) => this.toOrderItemByAdmin(item)),
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
@@ -416,6 +474,23 @@ export class OrderService {
       .exec();
 
     return this.toOrderResponse(order, items);
+  }
+
+  private async findOrderWithItemsByIdByAdmin(
+    orderId: string,
+  ): Promise<OrderByAdmin | null> {
+    const order = await this.orderModel.findOne({ _id: orderId }).exec();
+
+    if (!order) {
+      return null;
+    }
+
+    const items = await this.orderItemModel
+      .find({ orderId: order._id })
+      .sort({ createdAt: 1 })
+      .exec();
+
+    return this.toOrderByAdmin(order, items);
   }
 
   public async getMyCart(memberId: string): Promise<Cart> {
@@ -1013,6 +1088,204 @@ export class OrderService {
     } catch (err) {
       await session.abortTransaction();
       console.log('Error, Service.cancelMyOrder', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  public async getOrdersByAdmin(
+    input: AdminOrdersInquiryInput,
+  ): Promise<OrdersByAdmin> {
+    try {
+      const page = input?.page ?? 1;
+      const limit = input?.limit ?? 20;
+      const skip = (page - 1) * limit;
+
+      const filter: any = {
+        ...(input?.status ? { status: input.status } : {}),
+        ...(input?.memberId ? { memberId: input.memberId } : {}),
+      };
+
+      if (input?.vendorId) {
+        const orderIdsForVendor = await this.orderItemModel
+          .distinct('orderId', { vendorId: input.vendorId })
+          .exec();
+        filter._id = { $in: orderIdsForVendor };
+      }
+
+      if (input?.search?.trim()) {
+        const search = input.search.trim();
+        filter.$or = [
+          { orderNo: { $regex: search, $options: 'i' } },
+          { addressFullName: { $regex: search, $options: 'i' } },
+          { addressPhone: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      const [orders, total] = await Promise.all([
+        this.orderModel
+          .find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.orderModel.countDocuments(filter).exec(),
+      ]);
+
+      const orderIds = orders.map((order) => order._id);
+      const orderItems = await this.orderItemModel
+        .find({ orderId: { $in: orderIds } })
+        .sort({ createdAt: 1 })
+        .exec();
+
+      const itemsByOrderId = new Map<string, any[]>();
+      for (const item of orderItems) {
+        const key = item.orderId.toString();
+        if (!itemsByOrderId.has(key)) {
+          itemsByOrderId.set(key, []);
+        }
+        itemsByOrderId.get(key)?.push(item);
+      }
+
+      return {
+        list: orders.map((order) =>
+          this.toOrderByAdmin(
+            order,
+            itemsByOrderId.get(order._id.toString()) || [],
+          ),
+        ),
+        metaCounter: { total },
+      };
+    } catch (err) {
+      console.log('Error, Service.getOrdersByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getOrderByIdByAdmin(
+    orderId: string,
+  ): Promise<OrderByAdmin | null> {
+    try {
+      return await this.findOrderWithItemsByIdByAdmin(orderId);
+    } catch (err) {
+      console.log('Error, Service.getOrderByIdByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async updateOrderStatusByAdmin(
+    input: UpdateOrderStatusByAdminInput,
+  ): Promise<OrderByAdmin> {
+    try {
+      const order = await this.orderModel.findById(input.orderId).exec();
+
+      if (!order) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      if (input.status === OrderStatus.CANCELED) {
+        throw new BadRequestException(
+          'Use cancelOrderByAdmin for cancellation',
+        );
+      }
+
+      order.status = input.status;
+
+      if (input.status === OrderStatus.DELIVERED) {
+        order.deliveredAt = new Date();
+      }
+
+      if (input.note?.trim()) {
+        const noteText = `Admin note: ${input.note.trim()}`;
+        order.note = order.note ? `${order.note}\n${noteText}` : noteText;
+      }
+
+      await order.save();
+
+      const updatedOrder = await this.findOrderWithItemsByIdByAdmin(
+        order._id.toString(),
+      );
+      if (!updatedOrder) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      return updatedOrder;
+    } catch (err) {
+      console.log('Error, Service.updateOrderStatusByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.UPDATE_FAILED);
+    }
+  }
+
+  public async cancelOrderByAdmin(
+    input: CancelOrderByAdminInput,
+  ): Promise<OrderByAdmin> {
+    const session = await this.connection.startSession();
+
+    try {
+      session.startTransaction();
+
+      const order = await this.orderModel
+        .findById(input.orderId)
+        .session(session)
+        .exec();
+
+      if (!order) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      const cancellableStatuses = new Set<OrderStatus>([
+        OrderStatus.PENDING_PAYMENT,
+        OrderStatus.PAID,
+        OrderStatus.CONFIRMED,
+      ]);
+
+      if (!cancellableStatuses.has(order.status)) {
+        throw new BadRequestException(
+          'Order cannot be canceled at current status',
+        );
+      }
+
+      const orderItems = await this.orderItemModel
+        .find({ orderId: order._id })
+        .session(session)
+        .exec();
+
+      for (const item of orderItems) {
+        await this.productModel
+          .updateOne(
+            { _id: item.productId, deletedAt: null },
+            {
+              $inc: {
+                stockQty: item.quantity,
+                ordersCount: -item.quantity,
+              },
+            },
+            { session },
+          )
+          .exec();
+      }
+
+      order.status = OrderStatus.CANCELED;
+      order.canceledAt = new Date();
+
+      const reasonText = `Admin cancel reason: ${input.reason.trim()}`;
+      order.note = order.note ? `${order.note}\n${reasonText}` : reasonText;
+
+      await order.save({ session });
+      await session.commitTransaction();
+
+      const finalOrder = await this.findOrderWithItemsByIdByAdmin(
+        order._id.toString(),
+      );
+      if (!finalOrder) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      return finalOrder;
+    } catch (err) {
+      await session.abortTransaction();
+      console.log('Error, Service.cancelOrderByAdmin', err.message);
       throw new BadRequestException(err.message || Message.BAD_REQUEST);
     } finally {
       await session.endSession();
