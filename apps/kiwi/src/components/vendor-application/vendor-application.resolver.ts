@@ -5,6 +5,8 @@ import {
   ApplyVendorInput,
   ReviewVendorApplicationInput,
   VendorApplication,
+  VendorApplicationsByAdmin,
+  VendorApplicationsInquiryInput,
 } from '../../libs/types/vendor-application';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
@@ -35,6 +37,18 @@ export class VendorApplicationResolver {
   ): Promise<VendorApplication | null> {
     console.log('Query: getMyVendorApplication', { memberId });
     return await this.vendorApplicationService.getMyVendorApplication(memberId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Query(() => VendorApplicationsByAdmin)
+  public async getVendorApplicationsByAdmin(
+    @Args('input') input: VendorApplicationsInquiryInput,
+  ): Promise<VendorApplicationsByAdmin> {
+    console.log('Query: getVendorApplicationsByAdmin');
+    return await this.vendorApplicationService.getVendorApplicationsByAdmin(
+      input,
+    );
   }
 
   @UseGuards(AuthGuard, RolesGuard)

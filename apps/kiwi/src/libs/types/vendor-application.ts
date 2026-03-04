@@ -1,6 +1,16 @@
 import { ObjectType, Field, ID, InputType } from '@nestjs/graphql';
+import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { VendorApplicationStatus } from '../enums/member.enums';
 import { Document } from 'mongoose';
+import { MetaCounter } from '../dto/product/product';
 
 export interface VendorApplicationDocument extends Document {
   memberId: string;
@@ -67,4 +77,39 @@ export class ReviewVendorApplicationInput {
 
   @Field({ nullable: true })
   rejectionReason?: string;
+}
+
+@InputType()
+export class VendorApplicationsInquiryInput {
+  @Field(() => Number)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number;
+
+  @Field(() => Number)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number;
+
+  @Field(() => VendorApplicationStatus, { nullable: true })
+  @IsOptional()
+  @IsEnum(VendorApplicationStatus)
+  status?: VendorApplicationStatus;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
+}
+
+@ObjectType()
+export class VendorApplicationsByAdmin {
+  @Field(() => [VendorApplication])
+  list: VendorApplication[];
+
+  @Field(() => MetaCounter)
+  metaCounter: MetaCounter;
 }
