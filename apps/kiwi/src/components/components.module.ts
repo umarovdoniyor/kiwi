@@ -11,6 +11,7 @@ import { ProductCategoryModule } from './product-category/product-category.modul
 import { UploaderModule } from './uploader/uploader.module';
 import { WishlistModule } from './wishlist/wishlist.module';
 import { VendorModule } from './vendor/vendor.module';
+import { ProductReviewModule } from './product-review/product-review.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { VendorModule } from './vendor/vendor.module';
     UploaderModule,
     WishlistModule,
     VendorModule,
+    ProductReviewModule,
   ],
 })
 export class ComponentsModule {}
