@@ -36,6 +36,41 @@ export class ProductReviewService {
     OrderStatus.DELIVERED,
   ];
 
+  private readonly relaxedReviewOrderStatuses: OrderStatus[] = [
+    OrderStatus.PAID,
+    OrderStatus.CONFIRMED,
+    OrderStatus.PACKING,
+    OrderStatus.SHIPPED,
+    OrderStatus.DELIVERED,
+  ];
+
+  private getAllowedReviewOrderStatuses(): OrderStatus[] {
+    const explicitStatusesRaw = process.env.REVIEW_ELIGIBLE_ORDER_STATUSES;
+
+    if (explicitStatusesRaw?.trim()) {
+      const statusSet = new Set<OrderStatus>();
+      const allowedValues = new Set<string>(Object.values(OrderStatus));
+
+      for (const token of explicitStatusesRaw.split(',')) {
+        const normalized = token.trim().toUpperCase();
+        if (allowedValues.has(normalized)) {
+          statusSet.add(normalized as OrderStatus);
+        }
+      }
+
+      if (statusSet.size > 0) {
+        return Array.from(statusSet);
+      }
+    }
+
+    const mode =
+      process.env.REVIEW_VERIFIED_ORDER_MODE?.trim().toUpperCase() || 'RELAXED';
+
+    return mode === 'STRICT'
+      ? this.strictReviewOrderStatuses
+      : this.relaxedReviewOrderStatuses;
+  }
+
   private toReviewMember(doc: any): any {
     if (!doc?.memberSnapshot) {
       return null;
@@ -112,6 +147,8 @@ export class ProductReviewService {
     memberId: string,
     productId: string,
   ): Promise<string | null> {
+    const eligibleStatuses = this.getAllowedReviewOrderStatuses();
+
     const match = await this.orderItemModel
       .aggregate([
         {
@@ -132,7 +169,7 @@ export class ProductReviewService {
         {
           $match: {
             'order.memberId': new Types.ObjectId(memberId),
-            'order.status': { $in: this.strictReviewOrderStatuses },
+            'order.status': { $in: eligibleStatuses },
           },
         },
         { $project: { orderId: 1 } },
