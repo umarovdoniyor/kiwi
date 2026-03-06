@@ -303,6 +303,12 @@ export class ProductCard {
   @Field(() => Int)
   views: number;
 
+  @Field(() => Number)
+  ratingAvg: number;
+
+  @Field(() => Int)
+  reviewsCount: number;
+
   @Field(() => Date)
   createdAt: Date;
 }
@@ -389,6 +395,12 @@ export class ProductDetail {
 
   @Field(() => Int)
   ordersCount: number;
+
+  @Field(() => Number)
+  ratingAvg: number;
+
+  @Field(() => Int)
+  reviewsCount: number;
 
   @Field(() => ProductVendor, { nullable: true })
   vendor?: ProductVendor;

@@ -58,6 +58,8 @@ export const ProductSchema = new Schema(
     views: { type: Number, default: 0 },
     likes: { type: Number, default: 0 },
     ordersCount: { type: Number, default: 0 },
+    ratingAvg: { type: Number, default: 0 },
+    reviewsCount: { type: Number, default: 0 },
 
     deletedAt: { type: Date, default: null },
   },

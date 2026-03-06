@@ -117,6 +117,8 @@ export class VendorService {
       status: product.status,
       likes: product.likes,
       views: product.views,
+      ratingAvg: Number(product.ratingAvg || 0),
+      reviewsCount: Number(product.reviewsCount || 0),
       createdAt: product.createdAt,
     };
   }
@@ -344,6 +346,8 @@ export class VendorService {
                     status: 1,
                     likes: 1,
                     views: 1,
+                    ratingAvg: 1,
+                    reviewsCount: 1,
                     createdAt: 1,
                   },
                 },
