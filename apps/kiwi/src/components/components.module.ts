@@ -10,6 +10,7 @@ import { VendorApplicationModule } from './vendor-application/vendor-application
 import { ProductCategoryModule } from './product-category/product-category.module';
 import { UploaderModule } from './uploader/uploader.module';
 import { WishlistModule } from './wishlist/wishlist.module';
+import { VendorModule } from './vendor/vendor.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WishlistModule } from './wishlist/wishlist.module';
     ProductCategoryModule,
     UploaderModule,
     WishlistModule,
+    VendorModule,
   ],
 })
 export class ComponentsModule {}

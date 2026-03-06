@@ -447,3 +447,6 @@ export class CatalogProducts {
   @Field(() => MetaCounter)
   metaCounter: MetaCounter;
 }
+
+@ObjectType()
+export class ProductPayload extends CatalogProducts {}
