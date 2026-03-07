@@ -374,6 +374,10 @@ export class ProductService {
         baseMatch.stockQty = { $lte: 0 };
       }
 
+      if (input?.minRating !== undefined) {
+        baseMatch.ratingAvg = { $gte: input.minRating };
+      }
+
       const effectivePriceExpr = this.effectivePriceExpression();
       const sortStage = this.buildCatalogSortStage(input?.sortBy);
 

@@ -182,6 +182,14 @@ export class CatalogProductsInquiry {
   @IsBoolean()
   inStock?: boolean;
 
+  @Field(() => Number, { nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(5)
+  minRating?: number;
+
   @Field(() => ProductSortBy, { nullable: true })
   @IsOptional()
   @IsEnum(ProductSortBy)
