@@ -17,6 +17,7 @@ export interface MemberDocument extends Document {
   memberLastName: string;
   memberAvatar?: string;
   memberAddress?: string;
+  memberDob?: Date;
   memberType: MemberType;
   memberStatus: MemberStatus;
   vendorProfile?: VendorProfile;

@@ -62,6 +62,9 @@ export class MemberResponse {
   @Field({ nullable: true })
   memberAddress?: string;
 
+  @Field(() => Date, { nullable: true })
+  memberDob?: Date;
+
   @Field({ nullable: true })
   vendorProfile?: VendorProfileResponse;
 
@@ -112,6 +115,9 @@ export class MemberByAdmin {
 
   @Field({ nullable: true })
   memberAvatar?: string;
+
+  @Field(() => Date, { nullable: true })
+  memberDob?: Date;
 
   @Field(() => MemberType)
   memberType: MemberType;

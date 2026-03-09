@@ -58,6 +58,7 @@ export const MemberSchema = new Schema(
     memberLastName: { type: String, required: true },
     memberAvatar: { type: String, default: '' },
     memberAddress: { type: String },
+    memberDob: { type: Date },
 
     isEmailVerified: { type: Boolean, default: false },
     isPhoneVerified: { type: Boolean, default: false },

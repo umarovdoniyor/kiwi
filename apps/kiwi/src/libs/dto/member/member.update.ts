@@ -1,8 +1,20 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+} from 'class-validator';
 
 @InputType()
 export class MemberUpdate {
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsEmail()
+  memberEmail?: string;
+
   @Field(() => String, { nullable: true })
   @IsOptional()
   @IsString()
@@ -33,6 +45,11 @@ export class MemberUpdate {
   @IsOptional()
   @IsString()
   memberAddress?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsDateString()
+  memberDob?: string;
 }
 
 @InputType()

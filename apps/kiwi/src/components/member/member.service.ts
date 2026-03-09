@@ -92,6 +92,7 @@ export class MemberService implements OnApplicationBootstrap {
       memberType: doc.memberType,
       memberStatus: doc.memberStatus,
       memberAddress: doc.memberAddress,
+      memberDob: doc.memberDob,
       vendorProfile: doc.vendorProfile,
       isEmailVerified: doc.isEmailVerified,
       isPhoneVerified: doc.isPhoneVerified,
@@ -110,6 +111,7 @@ export class MemberService implements OnApplicationBootstrap {
       memberFirstName: doc.memberFirstName,
       memberLastName: doc.memberLastName,
       memberAvatar: doc.memberAvatar,
+      memberDob: doc.memberDob,
       memberType: doc.memberType,
       memberStatus: doc.memberStatus,
       createdAt: doc.createdAt,
@@ -199,10 +201,30 @@ export class MemberService implements OnApplicationBootstrap {
     input: MemberUpdate,
   ): Promise<MemberResponse> {
     try {
+      if (input.memberDob) {
+        const parsedDob = new Date(input.memberDob);
+        if (Number.isNaN(parsedDob.getTime())) {
+          throw new BadRequestException('Invalid date of birth format');
+        }
+        if (parsedDob > new Date()) {
+          throw new BadRequestException(
+            'Date of birth cannot be in the future',
+          );
+        }
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        ...input,
+        ...(input.memberEmail
+          ? { memberEmail: input.memberEmail.toLowerCase().trim() }
+          : {}),
+        ...(input.memberDob ? { memberDob: new Date(input.memberDob) } : {}),
+      };
+
       const updatedMember = await this.memberModel
         .findByIdAndUpdate(
           { _id: memberId, memberStatus: MemberStatus.ACTIVE },
-          input,
+          updatePayload,
           { new: true },
         )
         .exec();
