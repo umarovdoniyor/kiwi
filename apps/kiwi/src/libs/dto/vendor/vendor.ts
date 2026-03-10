@@ -209,6 +209,87 @@ export class VendorProfile {
   updatedAt: Date;
 }
 
+@ObjectType()
+export class VendorDashboardProductsSummary {
+  @Field(() => Int)
+  total: number;
+
+  @Field(() => Int)
+  published: number;
+
+  @Field(() => Int)
+  draft: number;
+
+  @Field(() => Int)
+  lowStock: number;
+}
+
+@ObjectType()
+export class VendorDashboardOrdersSummary {
+  @Field(() => Int)
+  total: number;
+
+  @Field(() => Int)
+  pending: number;
+
+  @Field(() => Int)
+  processing: number;
+
+  @Field(() => Int)
+  delivered: number;
+
+  @Field(() => Int)
+  cancelled: number;
+}
+
+@ObjectType()
+export class VendorDashboardReviewsSummary {
+  @Field(() => Int)
+  total: number;
+
+  @Field(() => Number)
+  averageRating: number;
+
+  @Field(() => Int)
+  oneStar: number;
+
+  @Field(() => Int)
+  twoStar: number;
+
+  @Field(() => Int)
+  threeStar: number;
+
+  @Field(() => Int)
+  fourStar: number;
+
+  @Field(() => Int)
+  fiveStar: number;
+}
+
+@ObjectType()
+export class VendorDashboardRevenueSummary {
+  @Field(() => Number)
+  gross: number;
+
+  @Field(() => String)
+  currency: string;
+}
+
+@ObjectType()
+export class VendorDashboardSummary {
+  @Field(() => VendorDashboardProductsSummary)
+  products: VendorDashboardProductsSummary;
+
+  @Field(() => VendorDashboardOrdersSummary)
+  orders: VendorDashboardOrdersSummary;
+
+  @Field(() => VendorDashboardReviewsSummary)
+  reviews: VendorDashboardReviewsSummary;
+
+  @Field(() => VendorDashboardRevenueSummary)
+  revenue: VendorDashboardRevenueSummary;
+}
+
 export type VendorProductsPayload = ProductPayload;
 
 @InputType()

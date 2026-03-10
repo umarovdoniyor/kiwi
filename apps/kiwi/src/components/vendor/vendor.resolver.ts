@@ -3,6 +3,7 @@ import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { VendorService } from './vendor.service';
 import {
   UpdateMyVendorProfileInput,
+  VendorDashboardSummary,
   VendorDetail,
   VendorProfile,
   VendorProductsInquiry,
@@ -68,6 +69,16 @@ export class VendorResolver {
   ): Promise<VendorProfile> {
     console.log('Mutation: updateMyVendorProfile');
     return await this.vendorService.updateMyVendorProfile(vendorId, input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Query(() => VendorDashboardSummary)
+  public async getVendorDashboardSummary(
+    @AuthMember('sub') vendorId: string,
+  ): Promise<VendorDashboardSummary> {
+    console.log('Query: getVendorDashboardSummary');
+    return await this.vendorService.getVendorDashboardSummary(vendorId);
   }
 
   @UseGuards(AuthGuard, RolesGuard)

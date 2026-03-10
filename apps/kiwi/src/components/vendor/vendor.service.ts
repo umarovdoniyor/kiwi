@@ -5,6 +5,7 @@ import { Message } from '../../libs/enums/common.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enums';
 import { ProductSortBy, ProductStatus } from '../../libs/enums/product.enum';
 import { ProductReviewSortBy } from '../../libs/enums/product-review.enum';
+import { OrderStatus } from '../../libs/enums/order.enum';
 import {
   memberStatusToVendorStatus,
   vendorStatusToMemberStatus,
@@ -12,6 +13,7 @@ import {
 } from '../../libs/enums/vendor.enum';
 import {
   UpdateMyVendorProfileInput,
+  VendorDashboardSummary,
   VendorDetail,
   VendorProfile,
   VendorProductsInquiry,
@@ -35,6 +37,7 @@ export class VendorService {
     @InjectModel('Product') private readonly productModel: Model<any>,
     @InjectModel('ProductReview')
     private readonly productReviewModel: Model<any>,
+    @InjectModel('OrderItem') private readonly orderItemModel: Model<any>,
   ) {}
 
   private normalizeSlug(value: string): string {
@@ -232,6 +235,10 @@ export class VendorService {
       rating4Count: Number(summary?.rating4Count || 0),
       rating5Count: Number(summary?.rating5Count || 0),
     };
+  }
+
+  private roundTo2(value: number): number {
+    return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
   }
 
   public async getVendors(input: VendorsInquiry): Promise<VendorsPayload> {
@@ -494,7 +501,9 @@ export class VendorService {
           _id: vendorId,
           memberType: MemberType.VENDOR,
         })
-        .select('_id memberStatus memberNickname vendorProfile createdAt updatedAt')
+        .select(
+          '_id memberStatus memberNickname vendorProfile createdAt updatedAt',
+        )
         .lean()
         .exec();
 
@@ -553,7 +562,9 @@ export class VendorService {
             runValidators: true,
           },
         )
-        .select('_id memberStatus memberNickname vendorProfile createdAt updatedAt')
+        .select(
+          '_id memberStatus memberNickname vendorProfile createdAt updatedAt',
+        )
         .lean()
         .exec();
 
@@ -565,6 +576,238 @@ export class VendorService {
     } catch (err) {
       console.log('Error, Service.updateMyVendorProfile', err.message);
       throw new BadRequestException(err.message || Message.UPDATE_FAILED);
+    }
+  }
+
+  public async getVendorDashboardSummary(
+    vendorId: string,
+  ): Promise<VendorDashboardSummary> {
+    try {
+      const vendorObjectId = new Types.ObjectId(vendorId);
+
+      const [productsAgg, ordersAgg, reviewsAgg, revenueAgg] =
+        await Promise.all([
+          this.productModel
+            .aggregate([
+              {
+                $match: {
+                  memberId: vendorObjectId,
+                  deletedAt: null,
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  published: {
+                    $sum: {
+                      $cond: [
+                        { $eq: ['$status', ProductStatus.PUBLISHED] },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  draft: {
+                    $sum: {
+                      $cond: [{ $eq: ['$status', ProductStatus.DRAFT] }, 1, 0],
+                    },
+                  },
+                  lowStock: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $and: [
+                            { $eq: ['$status', ProductStatus.PUBLISHED] },
+                            { $gt: ['$stockQty', 0] },
+                            { $lte: ['$stockQty', 5] },
+                          ],
+                        },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                },
+              },
+            ])
+            .exec(),
+          this.orderItemModel
+            .aggregate([
+              {
+                $match: {
+                  vendorId: vendorObjectId,
+                },
+              },
+              {
+                $lookup: {
+                  from: 'orders',
+                  localField: 'orderId',
+                  foreignField: '_id',
+                  as: 'order',
+                },
+              },
+              { $unwind: '$order' },
+              {
+                $group: {
+                  _id: '$order._id',
+                  orderStatus: { $first: '$order.status' },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  pending: {
+                    $sum: {
+                      $cond: [
+                        { $eq: ['$orderStatus', OrderStatus.PENDING_PAYMENT] },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  processing: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $in: [
+                            '$orderStatus',
+                            [
+                              OrderStatus.PAID,
+                              OrderStatus.CONFIRMED,
+                              OrderStatus.PACKING,
+                              OrderStatus.SHIPPED,
+                            ],
+                          ],
+                        },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  delivered: {
+                    $sum: {
+                      $cond: [
+                        { $eq: ['$orderStatus', OrderStatus.DELIVERED] },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                  cancelled: {
+                    $sum: {
+                      $cond: [
+                        { $eq: ['$orderStatus', OrderStatus.CANCELED] },
+                        1,
+                        0,
+                      ],
+                    },
+                  },
+                },
+              },
+            ])
+            .exec(),
+          this.productReviewModel
+            .aggregate([
+              {
+                $lookup: {
+                  from: 'products',
+                  let: { productId: '$productId' },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: {
+                          $and: [
+                            { $eq: ['$_id', '$$productId'] },
+                            { $eq: ['$memberId', vendorObjectId] },
+                            { $eq: ['$deletedAt', null] },
+                          ],
+                        },
+                      },
+                    },
+                    { $project: { _id: 1 } },
+                  ],
+                  as: 'product',
+                },
+              },
+              { $unwind: '$product' },
+              {
+                $match: {
+                  deletedAt: null,
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  averageRating: { $avg: '$rating' },
+                  oneStar: { $sum: { $cond: [{ $eq: ['$rating', 1] }, 1, 0] } },
+                  twoStar: { $sum: { $cond: [{ $eq: ['$rating', 2] }, 1, 0] } },
+                  threeStar: {
+                    $sum: { $cond: [{ $eq: ['$rating', 3] }, 1, 0] },
+                  },
+                  fourStar: {
+                    $sum: { $cond: [{ $eq: ['$rating', 4] }, 1, 0] },
+                  },
+                  fiveStar: {
+                    $sum: { $cond: [{ $eq: ['$rating', 5] }, 1, 0] },
+                  },
+                },
+              },
+            ])
+            .exec(),
+          this.orderItemModel
+            .aggregate([
+              {
+                $match: {
+                  vendorId: vendorObjectId,
+                  status: OrderStatus.DELIVERED,
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  gross: { $sum: '$lineTotal' },
+                },
+              },
+            ])
+            .exec(),
+        ]);
+
+      return {
+        products: {
+          total: Number(productsAgg?.[0]?.total || 0),
+          published: Number(productsAgg?.[0]?.published || 0),
+          draft: Number(productsAgg?.[0]?.draft || 0),
+          lowStock: Number(productsAgg?.[0]?.lowStock || 0),
+        },
+        orders: {
+          total: Number(ordersAgg?.[0]?.total || 0),
+          pending: Number(ordersAgg?.[0]?.pending || 0),
+          processing: Number(ordersAgg?.[0]?.processing || 0),
+          delivered: Number(ordersAgg?.[0]?.delivered || 0),
+          cancelled: Number(ordersAgg?.[0]?.cancelled || 0),
+        },
+        reviews: {
+          total: Number(reviewsAgg?.[0]?.total || 0),
+          averageRating: this.roundTo2(
+            Number(reviewsAgg?.[0]?.averageRating || 0),
+          ),
+          oneStar: Number(reviewsAgg?.[0]?.oneStar || 0),
+          twoStar: Number(reviewsAgg?.[0]?.twoStar || 0),
+          threeStar: Number(reviewsAgg?.[0]?.threeStar || 0),
+          fourStar: Number(reviewsAgg?.[0]?.fourStar || 0),
+          fiveStar: Number(reviewsAgg?.[0]?.fiveStar || 0),
+        },
+        revenue: {
+          gross: this.roundTo2(Number(revenueAgg?.[0]?.gross || 0)),
+          currency: process.env.CHECKOUT_CURRENCY || 'USD',
+        },
+      };
+    } catch (err) {
+      console.log('Error, Service.getVendorDashboardSummary', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
     }
   }
 
