@@ -20,6 +20,7 @@ import {
   MemberSignUpInput,
 } from '../../libs/dto/member/member.input';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enums';
+import { memberStatusToVendorStatus } from '../../libs/enums/vendor.enum';
 import { Message } from '../../libs/enums/common.enum';
 import { AuthService } from '../auth/auth.service';
 import {
@@ -81,6 +82,23 @@ export class MemberService implements OnApplicationBootstrap {
   }
 
   private toMemberResponse(doc: MemberDocument): MemberResponse {
+    const vendorProfile = doc.vendorProfile
+      ? {
+          _id: doc._id.toString(),
+          storeName:
+            doc.vendorProfile.storeName || doc.memberNickname || 'Vendor',
+          storeDescription: doc.vendorProfile.storeDescription || null,
+          coverImageUrl: doc.vendorProfile.coverImageUrl || null,
+          category: doc.vendorProfile.category || null,
+          minimumOrderQty:
+            doc.vendorProfile.minimumOrderQty !== undefined &&
+            doc.vendorProfile.minimumOrderQty !== null
+              ? Number(doc.vendorProfile.minimumOrderQty)
+              : null,
+          status: memberStatusToVendorStatus[doc.memberStatus],
+        }
+      : undefined;
+
     return {
       _id: doc._id.toString(),
       memberEmail: doc.memberEmail,
@@ -93,7 +111,7 @@ export class MemberService implements OnApplicationBootstrap {
       memberStatus: doc.memberStatus,
       memberAddress: doc.memberAddress,
       memberDob: doc.memberDob,
-      vendorProfile: doc.vendorProfile,
+      vendorProfile,
       isEmailVerified: doc.isEmailVerified,
       isPhoneVerified: doc.isPhoneVerified,
       lastLoginAt: doc.lastLoginAt,

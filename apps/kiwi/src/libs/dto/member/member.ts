@@ -11,21 +11,31 @@ import {
   Min,
 } from 'class-validator';
 import { MemberStatus, MemberType } from '../../enums/member.enums';
+import { VendorStatus } from '../../enums/vendor.enum';
 import { MetaCounter } from '../product/product';
 
 @ObjectType()
 export class VendorProfileResponse {
-  @Field()
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
   storeName: string;
 
-  @Field()
-  storeDescription: string;
+  @Field(() => String, { nullable: true })
+  storeDescription?: string | null;
 
-  @Field()
-  businessLicense: string;
+  @Field(() => String, { nullable: true })
+  coverImageUrl?: string | null;
 
-  @Field({ nullable: true })
-  taxId?: string;
+  @Field(() => String, { nullable: true })
+  category?: string | null;
+
+  @Field(() => Int, { nullable: true })
+  minimumOrderQty?: number | null;
+
+  @Field(() => VendorStatus, { nullable: true })
+  status?: VendorStatus;
 }
 
 @ObjectType()

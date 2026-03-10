@@ -3,8 +3,11 @@ import { MemberStatus, MemberType } from '../../enums/member.enums';
 
 export interface VendorProfile {
   storeName: string;
-  storeDescription: string;
-  businessLicense: string;
+  storeDescription?: string | null;
+  coverImageUrl?: string | null;
+  category?: string | null;
+  minimumOrderQty?: number | null;
+  businessLicense?: string;
   taxId?: string;
 }
 
