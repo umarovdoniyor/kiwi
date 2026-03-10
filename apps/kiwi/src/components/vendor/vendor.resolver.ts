@@ -1,3 +1,4 @@
+import { UseGuards } from '@nestjs/common';
 import { Args, Query, Resolver } from '@nestjs/graphql';
 import { VendorService } from './vendor.service';
 import {
@@ -7,6 +8,15 @@ import {
   VendorsPayload,
 } from '../../libs/dto/vendor/vendor';
 import { ProductPayload } from '../../libs/dto/product/product';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { MemberType } from '../../libs/enums/member.enums';
+import { AuthMember } from '../auth/decorators/authMember.decorator';
+import {
+  VendorProductReviewsInquiryInput,
+  VendorProductReviewsPage,
+} from '../../libs/dto/product-review/product-review';
 
 @Resolver()
 export class VendorResolver {
@@ -35,5 +45,16 @@ export class VendorResolver {
   ): Promise<ProductPayload> {
     console.log('Query: getVendorProducts');
     return await this.vendorService.getVendorProducts(vendorId, input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Query(() => VendorProductReviewsPage)
+  public async getVendorProductReviews(
+    @AuthMember('sub') vendorId: string,
+    @Args('input') input: VendorProductReviewsInquiryInput,
+  ): Promise<VendorProductReviewsPage> {
+    console.log('Query: getVendorProductReviews');
+    return await this.vendorService.getVendorProductReviews(vendorId, input);
   }
 }

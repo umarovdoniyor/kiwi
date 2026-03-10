@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Message } from '../../libs/enums/common.enum';
 import { MemberStatus, MemberType } from '../../libs/enums/member.enums';
 import { ProductSortBy, ProductStatus } from '../../libs/enums/product.enum';
+import { ProductReviewSortBy } from '../../libs/enums/product-review.enum';
 import {
   memberStatusToVendorStatus,
   vendorStatusToMemberStatus,
@@ -17,12 +18,21 @@ import {
   VendorSummary,
 } from '../../libs/dto/vendor/vendor';
 import { ProductCard, ProductPayload } from '../../libs/dto/product/product';
+import {
+  ProductReviewSummary,
+  VendorProductReview,
+  VendorProductReviewsInquiryInput,
+  VendorProductReviewsMetaCounter,
+  VendorProductReviewsPage,
+} from '../../libs/dto/product-review/product-review';
 
 @Injectable()
 export class VendorService {
   constructor(
     @InjectModel('Member') private readonly memberModel: Model<any>,
     @InjectModel('Product') private readonly productModel: Model<any>,
+    @InjectModel('ProductReview')
+    private readonly productReviewModel: Model<any>,
   ) {}
 
   private normalizeSlug(value: string): string {
@@ -120,6 +130,84 @@ export class VendorService {
       ratingAvg: Number(product.ratingAvg || 0),
       reviewsCount: Number(product.reviewsCount || 0),
       createdAt: product.createdAt,
+    };
+  }
+
+  private buildReviewSort(sortBy?: ProductReviewSortBy): any {
+    switch (sortBy || ProductReviewSortBy.NEWEST) {
+      case ProductReviewSortBy.OLDEST:
+        return { createdAt: 1, _id: 1 };
+      case ProductReviewSortBy.RATING_DESC:
+        return { rating: -1, createdAt: -1, _id: 1 };
+      case ProductReviewSortBy.RATING_ASC:
+        return { rating: 1, createdAt: -1, _id: 1 };
+      case ProductReviewSortBy.WITH_IMAGES:
+        return { createdAt: -1, _id: 1 };
+      case ProductReviewSortBy.NEWEST:
+      default:
+        return { createdAt: -1, _id: 1 };
+    }
+  }
+
+  private buildReviewMetaCounter(
+    page: number,
+    limit: number,
+    total: number,
+  ): VendorProductReviewsMetaCounter {
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+
+    return {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    };
+  }
+
+  private mapVendorProductReview(doc: any): VendorProductReview {
+    return {
+      _id: doc._id.toString(),
+      productId: doc.productId.toString(),
+      memberId: doc.memberId.toString(),
+      orderId: doc.orderId ? doc.orderId.toString() : null,
+      rating: doc.rating,
+      comment: doc.comment,
+      images: doc.images || [],
+      status: doc.status,
+      moderationReason: doc.moderationReason,
+      moderatedBy: doc.moderatedBy ? doc.moderatedBy.toString() : null,
+      moderatedAt: doc.moderatedAt,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      member: {
+        _id: doc.memberId.toString(),
+        memberNickname: doc.memberSnapshot?.memberNickname || null,
+        memberFirstName: doc.memberSnapshot?.memberFirstName || null,
+        memberLastName: doc.memberSnapshot?.memberLastName || null,
+        memberAvatar: doc.memberSnapshot?.memberAvatar || null,
+      },
+      product: doc.product
+        ? {
+            _id: doc.product._id.toString(),
+            title: doc.product.title,
+            thumbnail: doc.product.thumbnail || null,
+            slug: doc.product.slug || null,
+          }
+        : undefined,
+    };
+  }
+
+  private buildReviewSummaryFromAgg(summary: any): ProductReviewSummary {
+    return {
+      ratingAvg: Number((summary?.ratingAvg || 0).toFixed(2)),
+      reviewsCount: Number(summary?.reviewsCount || 0),
+      rating1Count: Number(summary?.rating1Count || 0),
+      rating2Count: Number(summary?.rating2Count || 0),
+      rating3Count: Number(summary?.rating3Count || 0),
+      rating4Count: Number(summary?.rating4Count || 0),
+      rating5Count: Number(summary?.rating5Count || 0),
     };
   }
 
@@ -372,6 +460,181 @@ export class VendorService {
       };
     } catch (err) {
       console.log('Error, Service.getVendorProducts', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getVendorProductReviews(
+    vendorId: string,
+    input: VendorProductReviewsInquiryInput,
+  ): Promise<VendorProductReviewsPage> {
+    try {
+      const page = input?.page ?? 1;
+      const limit = Math.min(Math.max(input?.limit ?? 10, 1), 50);
+      const skip = (page - 1) * limit;
+
+      const basePipeline: any[] = [
+        { $match: { deletedAt: null } },
+        {
+          $lookup: {
+            from: 'products',
+            let: { productId: '$productId' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ['$_id', '$$productId'] },
+                      { $eq: ['$memberId', new Types.ObjectId(vendorId)] },
+                      { $eq: ['$deletedAt', null] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  title: 1,
+                  thumbnail: 1,
+                  slug: 1,
+                },
+              },
+            ],
+            as: 'product',
+          },
+        },
+        { $unwind: '$product' },
+      ];
+
+      if (input?.status) {
+        basePipeline.push({ $match: { status: input.status } });
+      }
+
+      if (input?.productId) {
+        basePipeline.push({
+          $match: { productId: new Types.ObjectId(input.productId) },
+        });
+      }
+
+      if (input?.rating) {
+        basePipeline.push({ $match: { rating: input.rating } });
+      }
+
+      if (input?.sortBy === ProductReviewSortBy.WITH_IMAGES) {
+        basePipeline.push({ $match: { 'images.0': { $exists: true } } });
+      }
+
+      if (input?.search?.trim()) {
+        const keyword = input.search.trim();
+        basePipeline.push({
+          $match: {
+            $or: [
+              { comment: { $regex: keyword, $options: 'i' } },
+              {
+                'memberSnapshot.memberNickname': {
+                  $regex: keyword,
+                  $options: 'i',
+                },
+              },
+              {
+                'memberSnapshot.memberFirstName': {
+                  $regex: keyword,
+                  $options: 'i',
+                },
+              },
+              {
+                'memberSnapshot.memberLastName': {
+                  $regex: keyword,
+                  $options: 'i',
+                },
+              },
+              { 'product.title': { $regex: keyword, $options: 'i' } },
+            ],
+          },
+        });
+      }
+
+      const [result, summaryAgg] = await Promise.all([
+        this.productReviewModel
+          .aggregate([
+            ...basePipeline,
+            {
+              $facet: {
+                list: [
+                  { $sort: this.buildReviewSort(input?.sortBy) },
+                  { $skip: skip },
+                  { $limit: limit },
+                  {
+                    $project: {
+                      _id: 1,
+                      productId: 1,
+                      memberId: 1,
+                      orderId: 1,
+                      rating: 1,
+                      comment: 1,
+                      images: 1,
+                      status: 1,
+                      moderationReason: 1,
+                      moderatedBy: 1,
+                      moderatedAt: 1,
+                      createdAt: 1,
+                      updatedAt: 1,
+                      memberSnapshot: 1,
+                      product: 1,
+                    },
+                  },
+                ],
+                total: [{ $count: 'count' }],
+              },
+            },
+            {
+              $project: {
+                list: 1,
+                total: { $ifNull: [{ $arrayElemAt: ['$total.count', 0] }, 0] },
+              },
+            },
+          ])
+          .exec(),
+        this.productReviewModel
+          .aggregate([
+            ...basePipeline,
+            {
+              $group: {
+                _id: null,
+                reviewsCount: { $sum: 1 },
+                ratingAvg: { $avg: '$rating' },
+                rating1Count: {
+                  $sum: { $cond: [{ $eq: ['$rating', 1] }, 1, 0] },
+                },
+                rating2Count: {
+                  $sum: { $cond: [{ $eq: ['$rating', 2] }, 1, 0] },
+                },
+                rating3Count: {
+                  $sum: { $cond: [{ $eq: ['$rating', 3] }, 1, 0] },
+                },
+                rating4Count: {
+                  $sum: { $cond: [{ $eq: ['$rating', 4] }, 1, 0] },
+                },
+                rating5Count: {
+                  $sum: { $cond: [{ $eq: ['$rating', 5] }, 1, 0] },
+                },
+              },
+            },
+          ])
+          .exec(),
+      ]);
+
+      const total = Number(result?.[0]?.total || 0);
+
+      return {
+        list: (result?.[0]?.list || []).map((doc: any) =>
+          this.mapVendorProductReview(doc),
+        ),
+        metaCounter: this.buildReviewMetaCounter(page, limit, total),
+        summary: this.buildReviewSummaryFromAgg(summaryAgg?.[0]),
+      };
+    } catch (err) {
+      console.log('Error, Service.getVendorProductReviews', err.message);
       throw new BadRequestException(err.message || Message.BAD_REQUEST);
     }
   }

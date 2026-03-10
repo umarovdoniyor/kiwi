@@ -45,6 +45,51 @@ export class ProductReviewsInquiry {
 }
 
 @InputType()
+export class VendorProductReviewsInquiryInput {
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number;
+
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit: number;
+
+  @Field(() => ProductReviewStatus, { nullable: true })
+  @IsOptional()
+  @IsEnum(ProductReviewStatus)
+  status?: ProductReviewStatus;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  search?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsMongoId()
+  productId?: string;
+
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating?: number;
+
+  @Field(() => ProductReviewSortBy, { nullable: true })
+  @IsOptional()
+  @IsEnum(ProductReviewSortBy)
+  sortBy?: ProductReviewSortBy;
+}
+
+@InputType()
 export class CreateProductReviewInput {
   @Field(() => String)
   @IsMongoId()
@@ -172,6 +217,21 @@ export class ProductReviewMember {
 }
 
 @ObjectType()
+export class ProductReviewProduct {
+  @Field(() => String)
+  _id: string;
+
+  @Field(() => String)
+  title: string;
+
+  @Field(() => String, { nullable: true })
+  thumbnail?: string;
+
+  @Field(() => String, { nullable: true })
+  slug?: string;
+}
+
+@ObjectType()
 export class ProductReview {
   @Field(() => ID)
   _id: string;
@@ -217,6 +277,12 @@ export class ProductReview {
 }
 
 @ObjectType()
+export class VendorProductReview extends ProductReview {
+  @Field(() => ProductReviewProduct, { nullable: true })
+  product?: ProductReviewProduct;
+}
+
+@ObjectType()
 export class ProductReviewSummary {
   @Field(() => Number)
   ratingAvg: number;
@@ -247,6 +313,39 @@ export class ProductReviewsPayload {
 
   @Field(() => MetaCounter)
   metaCounter: MetaCounter;
+
+  @Field(() => ProductReviewSummary)
+  summary: ProductReviewSummary;
+}
+
+@ObjectType()
+export class VendorProductReviewsMetaCounter {
+  @Field(() => Int)
+  total: number;
+
+  @Field(() => Int)
+  page: number;
+
+  @Field(() => Int)
+  limit: number;
+
+  @Field(() => Int)
+  totalPages: number;
+
+  @Field(() => Boolean)
+  hasNextPage: boolean;
+
+  @Field(() => Boolean)
+  hasPrevPage: boolean;
+}
+
+@ObjectType()
+export class VendorProductReviewsPage {
+  @Field(() => [VendorProductReview])
+  list: VendorProductReview[];
+
+  @Field(() => VendorProductReviewsMetaCounter)
+  metaCounter: VendorProductReviewsMetaCounter;
 
   @Field(() => ProductReviewSummary)
   summary: ProductReviewSummary;
