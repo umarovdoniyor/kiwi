@@ -648,3 +648,33 @@ export class CancelOrderByAdminInput {
   @MaxLength(300)
   reason: string;
 }
+
+@InputType()
+export class UpdateMyVendorOrderItemStatusInput {
+  @Field(() => String)
+  @IsMongoId()
+  orderId: string;
+
+  @Field(() => String)
+  @IsMongoId()
+  itemId: string;
+
+  @Field(() => OrderStatus)
+  @IsEnum(OrderStatus)
+  status: OrderStatus;
+}
+
+@ObjectType()
+export class VendorOrderItemStatusUpdateOutput {
+  @Field(() => String)
+  orderId: string;
+
+  @Field(() => String)
+  itemId: string;
+
+  @Field(() => OrderStatus)
+  status: OrderStatus;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}

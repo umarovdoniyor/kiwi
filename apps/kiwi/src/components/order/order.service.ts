@@ -20,8 +20,10 @@ import {
   OrdersByMember,
   RemoveCartItemInput,
   UpdateOrderStatusByAdminInput,
+  UpdateMyVendorOrderItemStatusInput,
   UpdateCartItemQtyInput,
   ValidateCartForCheckoutOutput,
+  VendorOrderItemStatusUpdateOutput,
 } from '../../libs/dto/order/order';
 import {
   CartItemStatus,
@@ -493,6 +495,53 @@ export class OrderService {
     return this.toOrderByAdmin(order, items);
   }
 
+  private getVendorItemTransitionRank(status?: OrderStatus): number {
+    switch (status) {
+      case OrderStatus.PACKING:
+        return 1;
+      case OrderStatus.SHIPPED:
+        return 2;
+      case OrderStatus.DELIVERED:
+        return 3;
+      default:
+        return 0;
+    }
+  }
+
+  private validateVendorItemTransition(
+    currentStatus: OrderStatus,
+    nextStatus: OrderStatus,
+  ): void {
+    const allowedTargets = new Set<OrderStatus>([
+      OrderStatus.PACKING,
+      OrderStatus.SHIPPED,
+      OrderStatus.DELIVERED,
+    ]);
+
+    if (!allowedTargets.has(nextStatus)) {
+      throw new BadRequestException(
+        'Invalid status. Allowed values: PACKING, SHIPPED, DELIVERED',
+      );
+    }
+
+    if (currentStatus === OrderStatus.CANCELED) {
+      throw new BadRequestException('Canceled items cannot be updated');
+    }
+
+    if (currentStatus === OrderStatus.REFUNDED) {
+      throw new BadRequestException('Refunded items cannot be updated');
+    }
+
+    const currentRank = this.getVendorItemTransitionRank(currentStatus);
+    const nextRank = this.getVendorItemTransitionRank(nextStatus);
+
+    if (nextRank <= currentRank) {
+      throw new BadRequestException(
+        'Backward or duplicate status transitions are not allowed',
+      );
+    }
+  }
+
   public async getMyCart(memberId: string): Promise<Cart> {
     try {
       const cart = await this.getOrCreateCart(memberId);
@@ -501,6 +550,64 @@ export class OrderService {
     } catch (err) {
       console.log('Error, Service.getMyCart', err.message);
       throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async updateMyVendorOrderItemStatus(
+    vendorId: string,
+    input: UpdateMyVendorOrderItemStatusInput,
+  ): Promise<VendorOrderItemStatusUpdateOutput> {
+    try {
+      const order = await this.orderModel.findById(input.orderId).exec();
+      if (!order) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      if (
+        order.status === OrderStatus.CANCELED ||
+        order.status === OrderStatus.REFUNDED
+      ) {
+        throw new BadRequestException(
+          'Order is not updatable in its current status',
+        );
+      }
+
+      const item = await this.orderItemModel
+        .findOne({
+          _id: input.itemId,
+          orderId: input.orderId,
+        })
+        .exec();
+
+      if (!item) {
+        throw new BadRequestException(
+          'Order item not found for the given order',
+        );
+      }
+
+      if (!item.vendorId || item.vendorId.toString() !== vendorId) {
+        throw new BadRequestException(
+          'You are not allowed to update this order item',
+        );
+      }
+
+      const currentStatus: OrderStatus =
+        (item.status as OrderStatus) || (order.status as OrderStatus);
+
+      this.validateVendorItemTransition(currentStatus, input.status);
+
+      item.status = input.status;
+      await item.save();
+
+      return {
+        orderId: input.orderId,
+        itemId: item._id.toString(),
+        status: item.status,
+        updatedAt: item.updatedAt,
+      };
+    } catch (err) {
+      console.log('Error, Service.updateMyVendorOrderItemStatus', err.message);
+      throw new BadRequestException(err.message || Message.UPDATE_FAILED);
     }
   }
 
@@ -865,6 +972,7 @@ export class OrderService {
       const orderItemsPayload = preparedOrderItems.map((item) => ({
         ...item,
         orderId: order._id,
+        status: order.status,
       }));
 
       await this.orderItemModel.insertMany(orderItemsPayload, { session });

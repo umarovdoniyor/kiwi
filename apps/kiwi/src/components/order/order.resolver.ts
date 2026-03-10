@@ -16,8 +16,10 @@ import {
   OrdersByMember,
   RemoveCartItemInput,
   UpdateOrderStatusByAdminInput,
+  UpdateMyVendorOrderItemStatusInput,
   UpdateCartItemQtyInput,
   ValidateCartForCheckoutOutput,
+  VendorOrderItemStatusUpdateOutput,
 } from '../../libs/dto/order/order';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { AuthMember } from '../auth/decorators/authMember.decorator';
@@ -129,6 +131,20 @@ export class OrderResolver {
   ): Promise<Order> {
     console.log('Mutation: cancelMyOrder');
     return await this.orderService.cancelMyOrder(memberId, input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Mutation(() => VendorOrderItemStatusUpdateOutput)
+  public async updateMyVendorOrderItemStatus(
+    @AuthMember('sub') vendorId: string,
+    @Args('input') input: UpdateMyVendorOrderItemStatusInput,
+  ): Promise<VendorOrderItemStatusUpdateOutput> {
+    console.log('Mutation: updateMyVendorOrderItemStatus');
+    return await this.orderService.updateMyVendorOrderItemStatus(
+      vendorId,
+      input,
+    );
   }
 
   @UseGuards(AuthGuard, RolesGuard)

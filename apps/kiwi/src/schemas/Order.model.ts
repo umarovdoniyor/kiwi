@@ -81,6 +81,13 @@ export const OrderItemSchema = new Schema(
     },
     vendorId: { type: Schema.Types.ObjectId, ref: 'Member', default: null },
 
+    status: {
+      type: String,
+      enum: Object.values(OrderStatus),
+      default: OrderStatus.PENDING_PAYMENT,
+      index: true,
+    },
+
     quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, default: null, min: 0 },
