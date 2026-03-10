@@ -11,7 +11,9 @@ import {
   VendorSortBy,
 } from '../../libs/enums/vendor.enum';
 import {
+  UpdateMyVendorProfileInput,
   VendorDetail,
+  VendorProfile,
   VendorProductsInquiry,
   VendorsInquiry,
   VendorsPayload,
@@ -78,6 +80,27 @@ export class VendorService {
       ...summary,
       storeDescription: doc.vendorProfile?.storeDescription || null,
       memberEmail: doc.memberEmail || null,
+    };
+  }
+
+  private mapMyVendorProfile(doc: any): VendorProfile {
+    const status = memberStatusToVendorStatus[doc.memberStatus as MemberStatus];
+
+    return {
+      _id: doc._id.toString(),
+      memberId: doc._id.toString(),
+      storeName: doc.vendorProfile?.storeName || doc.memberNickname || 'Vendor',
+      storeDescription: doc.vendorProfile?.storeDescription || null,
+      coverImageUrl: doc.vendorProfile?.coverImageUrl || null,
+      category: doc.vendorProfile?.category || null,
+      minimumOrderQty:
+        doc.vendorProfile?.minimumOrderQty !== undefined &&
+        doc.vendorProfile?.minimumOrderQty !== null
+          ? Number(doc.vendorProfile.minimumOrderQty)
+          : null,
+      status,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
     };
   }
 
@@ -461,6 +484,87 @@ export class VendorService {
     } catch (err) {
       console.log('Error, Service.getVendorProducts', err.message);
       throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getMyVendorProfile(vendorId: string): Promise<VendorProfile> {
+    try {
+      const vendor = await this.memberModel
+        .findOne({
+          _id: vendorId,
+          memberType: MemberType.VENDOR,
+        })
+        .select('_id memberStatus memberNickname vendorProfile createdAt updatedAt')
+        .lean()
+        .exec();
+
+      if (!vendor) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      return this.mapMyVendorProfile(vendor);
+    } catch (err) {
+      console.log('Error, Service.getMyVendorProfile', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async updateMyVendorProfile(
+    vendorId: string,
+    input: UpdateMyVendorProfileInput,
+  ): Promise<VendorProfile> {
+    try {
+      const updateSet: any = {};
+
+      if (input.storeName !== undefined) {
+        updateSet['vendorProfile.storeName'] = input.storeName.trim();
+      }
+
+      if (input.storeDescription !== undefined) {
+        updateSet['vendorProfile.storeDescription'] =
+          input.storeDescription.trim();
+      }
+
+      if (input.coverImageUrl !== undefined) {
+        updateSet['vendorProfile.coverImageUrl'] = input.coverImageUrl.trim();
+      }
+
+      if (input.category !== undefined) {
+        updateSet['vendorProfile.category'] = input.category.trim();
+      }
+
+      if (input.minimumOrderQty !== undefined) {
+        updateSet['vendorProfile.minimumOrderQty'] = input.minimumOrderQty;
+      }
+
+      if (Object.keys(updateSet).length === 0) {
+        return await this.getMyVendorProfile(vendorId);
+      }
+
+      const vendor = await this.memberModel
+        .findOneAndUpdate(
+          {
+            _id: vendorId,
+            memberType: MemberType.VENDOR,
+          },
+          { $set: updateSet },
+          {
+            new: true,
+            runValidators: true,
+          },
+        )
+        .select('_id memberStatus memberNickname vendorProfile createdAt updatedAt')
+        .lean()
+        .exec();
+
+      if (!vendor) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      return this.mapMyVendorProfile(vendor);
+    } catch (err) {
+      console.log('Error, Service.updateMyVendorProfile', err.message);
+      throw new BadRequestException(err.message || Message.UPDATE_FAILED);
     }
   }
 

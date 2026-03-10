@@ -67,6 +67,40 @@ export class VendorProductsInquiry {
   sortBy?: ProductSortBy;
 }
 
+@InputType()
+export class UpdateMyVendorProfileInput {
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  storeName?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  storeDescription?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  coverImageUrl?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  category?: string;
+
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  minimumOrderQty?: number;
+}
+
 @ObjectType()
 export class VendorSocialLinks {
   @Field(() => String, { nullable: true })
@@ -140,6 +174,39 @@ export class VendorDetail extends VendorSummary {
 
   @Field(() => String, { nullable: true })
   memberEmail?: string;
+}
+
+@ObjectType()
+export class VendorProfile {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  memberId: string;
+
+  @Field(() => String)
+  storeName: string;
+
+  @Field(() => String, { nullable: true })
+  storeDescription?: string | null;
+
+  @Field(() => String, { nullable: true })
+  coverImageUrl?: string | null;
+
+  @Field(() => String, { nullable: true })
+  category?: string | null;
+
+  @Field(() => Int, { nullable: true })
+  minimumOrderQty?: number | null;
+
+  @Field(() => VendorStatus)
+  status: VendorStatus;
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
 }
 
 export type VendorProductsPayload = ProductPayload;

@@ -5,6 +5,9 @@ const VendorProfileSchema = new Schema(
   {
     storeName: { type: String },
     storeDescription: { type: String },
+    coverImageUrl: { type: String, default: null },
+    category: { type: String, default: null },
+    minimumOrderQty: { type: Number, min: 1, default: null },
     businessLicense: { type: String },
     taxId: { type: String },
   },

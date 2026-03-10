@@ -1,8 +1,10 @@
 import { UseGuards } from '@nestjs/common';
-import { Args, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { VendorService } from './vendor.service';
 import {
+  UpdateMyVendorProfileInput,
   VendorDetail,
+  VendorProfile,
   VendorProductsInquiry,
   VendorsInquiry,
   VendorsPayload,
@@ -45,6 +47,27 @@ export class VendorResolver {
   ): Promise<ProductPayload> {
     console.log('Query: getVendorProducts');
     return await this.vendorService.getVendorProducts(vendorId, input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Query(() => VendorProfile)
+  public async getMyVendorProfile(
+    @AuthMember('sub') vendorId: string,
+  ): Promise<VendorProfile> {
+    console.log('Query: getMyVendorProfile');
+    return await this.vendorService.getMyVendorProfile(vendorId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Mutation(() => VendorProfile)
+  public async updateMyVendorProfile(
+    @AuthMember('sub') vendorId: string,
+    @Args('input') input: UpdateMyVendorProfileInput,
+  ): Promise<VendorProfile> {
+    console.log('Mutation: updateMyVendorProfile');
+    return await this.vendorService.updateMyVendorProfile(vendorId, input);
   }
 
   @UseGuards(AuthGuard, RolesGuard)
