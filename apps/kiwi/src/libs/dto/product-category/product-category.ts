@@ -164,3 +164,42 @@ export class CategoriesResponse {
   @Field(() => CategoryMetaCounter)
   metaCounter: CategoryMetaCounter;
 }
+
+@ObjectType()
+export class CategoryTreeNode {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  name: string;
+
+  @Field(() => String)
+  slug: string;
+
+  @Field(() => String, { nullable: true })
+  description?: string;
+
+  @Field(() => String, { nullable: true })
+  icon?: string;
+
+  @Field(() => String, { nullable: true })
+  image?: string;
+
+  @Field(() => CategoryStatus)
+  status: CategoryStatus;
+
+  @Field(() => Int)
+  sortOrder: number;
+
+  @Field(() => String, { nullable: true })
+  parentId?: string;
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+
+  @Field(() => [CategoryTreeNode])
+  children: CategoryTreeNode[];
+}

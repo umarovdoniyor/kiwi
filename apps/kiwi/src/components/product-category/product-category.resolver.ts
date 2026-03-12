@@ -5,6 +5,7 @@ import {
   CategoriesResponse,
   CategoryInquiry,
   CategoryResponse,
+  CategoryTreeNode,
   CreateCategoryInput,
   RemoveCategoryInput,
   UpdateCategoryInput,
@@ -82,5 +83,11 @@ export class ProductCategoryResolver {
   ): Promise<CategoryResponse> {
     console.log('Query: getCategoryBySlug');
     return await this.productCategoryService.getCategoryBySlug(slug);
+  }
+
+  @Query(() => [CategoryTreeNode])
+  public async getCategoryTree(): Promise<CategoryTreeNode[]> {
+    console.log('Query: getCategoryTree');
+    return await this.productCategoryService.getCategoryTree();
   }
 }

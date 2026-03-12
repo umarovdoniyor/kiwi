@@ -5,6 +5,7 @@ import {
   CategoriesResponse,
   CategoryInquiry,
   CategoryResponse,
+  CategoryTreeNode,
   CreateCategoryInput,
   RemoveCategoryInput,
   UpdateCategoryInput,
@@ -32,6 +33,23 @@ export class ProductCategoryService {
       parentId: category.parentId ? category.parentId.toString() : null,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
+    };
+  }
+
+  private toCategoryTreeNode(category: any): CategoryTreeNode {
+    return {
+      _id: category._id.toString(),
+      name: category.name,
+      slug: category.slug,
+      description: category.description,
+      icon: category.icon,
+      image: category.image,
+      status: category.status,
+      sortOrder: category.sortOrder,
+      parentId: category.parentId ? category.parentId.toString() : null,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      children: [],
     };
   }
 
@@ -272,6 +290,53 @@ export class ProductCategoryService {
     } catch (err) {
       console.log('Error, Service.getCategoryBySlug', err.message);
       throw new BadRequestException(err.message || Message.NO_DATA_FOUND);
+    }
+  }
+
+  public async getCategoryTree(): Promise<CategoryTreeNode[]> {
+    try {
+      const categories = await this.categoryModel
+        .find({
+          status: CategoryStatus.ACTIVE,
+          deletedAt: null,
+        })
+        .sort({ sortOrder: 1, createdAt: -1 })
+        .exec();
+
+      const nodeMap = new Map<string, CategoryTreeNode>();
+      const roots: CategoryTreeNode[] = [];
+
+      for (const category of categories) {
+        const node = this.toCategoryTreeNode(category);
+        nodeMap.set(node._id, node);
+      }
+
+      for (const category of categories) {
+        const node = nodeMap.get(category._id.toString());
+        if (!node) continue;
+
+        const parentId = category.parentId
+          ? category.parentId.toString()
+          : null;
+
+        if (!parentId) {
+          roots.push(node);
+          continue;
+        }
+
+        const parentNode = nodeMap.get(parentId);
+        if (!parentNode) {
+          roots.push(node);
+          continue;
+        }
+
+        parentNode.children.push(node);
+      }
+
+      return roots;
+    } catch (err) {
+      console.log('Error, Service.getCategoryTree', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
     }
   }
 }
