@@ -66,7 +66,7 @@ export class VendorService {
       memberPhone: doc.memberPhone || null,
       memberAddress: doc.memberAddress || null,
       memberImage: doc.memberAvatar || null,
-      coverImage: undefined,
+      coverImage: doc.vendorProfile?.coverImageUrl || null,
       verified: !!(doc.isEmailVerified || doc.isPhoneVerified),
       status: memberStatusToVendorStatus[doc.memberStatus as MemberStatus],
       socialLinks: undefined,

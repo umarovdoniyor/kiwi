@@ -1,0 +1,147 @@
+Mock Users
+1
+
+Email: john.fresh@example.com
+
+Password: Kiwi1111
+Nickname: johnfresh
+First Name: John
+Last Name: Carter
+Phone: +12025550101
+Address: 12 Market Street, New York, USA
+
+2
+
+Email: anna.green@example.com
+
+Password: Kiwi1111
+Nickname: annagreen
+First Name: Anna
+Last Name: Green
+Phone: +12025550102
+Address: 45 Garden Avenue, Boston, USA
+
+3
+
+Email: michael.farm@example.com
+
+Password: Kiwi1111
+Nickname: farmmike
+First Name: Michael
+Last Name: Brown
+Phone: +12025550103
+Address: 77 Orchard Road, Sacramento, USA
+
+4
+
+Email: lisa.healthy@example.com
+
+Password: Kiwi1111
+Nickname: healthylisa
+First Name: Lisa
+Last Name: Miller
+Phone: +12025550104
+Address: 101 Wellness Boulevard, Austin, USA
+
+5
+
+Email: david.market@example.com
+
+Password: Kiwi1111
+Nickname: marketdave
+First Name: David
+Last Name: Wilson
+Phone: +12025550105
+Address: 22 Fresh Lane, Chicago, USA
+
+6
+
+Email: sarah.organic@example.com
+
+Password: Kiwi1111
+Nickname: organicsarah
+First Name: Sarah
+Last Name: Adams
+Phone: +12025550106
+Address: 9 Green Farm Drive, Portland, USA
+
+7
+
+Email: daniel.shop@example.com
+
+Password: Kiwi1111
+Nickname: shopdaniel
+First Name: Daniel
+Last Name: Scott
+Phone: +12025550107
+Address: 55 Grocery Plaza, Denver, USA
+
+8
+
+Email: emma.fresh@example.com
+
+Password: Kiwi1111
+Nickname: freshemma
+First Name: Emma
+Last Name: Taylor
+Phone: +12025550108
+Address: 73 Healthy Street, San Diego, USA
+
+9
+
+Email: alex.vendor@example.com
+
+Password: Kiwi1111
+Nickname: vendoralex
+First Name: Alex
+Last Name: Morgan
+Phone: +12025550109
+Address: 18 Market Square, Seattle, USA
+
+10
+
+Email: olivia.store@example.com
+
+Password: Kiwi1111
+Nickname: storeolivia
+First Name: Olivia
+Last Name: Davis
+Phone: +12025550110
+Address: 64 Farmer Road, San Jose, USA
+
+
+ *** VENDORS: [3,6,9] ***
+
+ Vendor Application Mock Data
+1 — farmmike
+
+Store Name
+Green Valley Farm
+
+Description
+Family-owned farm offering fresh organic fruits and vegetables grown locally. We specialize in seasonal produce including apples, strawberries, tomatoes, and leafy greens. All products are harvested daily to ensure maximum freshness.
+
+Business License URL
+https://mock-storage.com/licenses/green-valley-farm-license.jpg
+
+2 — organicsarah
+
+Store Name
+Pure Organic Market
+
+Description
+Organic grocery vendor focused on healthy living. We supply pesticide-free vegetables, natural dairy products, and farm-fresh eggs sourced from trusted local farmers.
+
+Business License URL
+https://mock-storage.com/licenses/pure-organic-market-license.jpg
+
+3 — vendoralex
+
+Store Name
+Global Fresh Imports
+
+Description
+Specialized vendor importing premium fruits and vegetables from international farms. We provide high-quality avocados, mangoes, berries, and exotic produce for customers looking for unique grocery options.
+
+Business License URL
+https://mock-storage.com/licenses/global-fresh-imports-license.jpg
