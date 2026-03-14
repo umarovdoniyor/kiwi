@@ -7,6 +7,7 @@ import { CategorySchema } from '../../schemas/Product-Category.model';
 import LikeSchema from '../../schemas/Like.model';
 import ViewSchema from '../../schemas/View.model';
 import { MemberSchema } from '../../schemas/Member.model';
+import { OrderItemSchema } from '../../schemas/Order.model';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { AuthModule } from '../auth/auth.module';
       { name: 'Like', schema: LikeSchema },
       { name: 'View', schema: ViewSchema },
       { name: 'Member', schema: MemberSchema },
+      { name: 'OrderItem', schema: OrderItemSchema },
     ]),
   ],
   providers: [ProductService, ProductResolver],

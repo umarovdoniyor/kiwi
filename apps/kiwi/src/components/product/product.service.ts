@@ -9,6 +9,7 @@ import {
   FeaturedProductsInquiry,
   MyProductsInquiry,
   MyProductsResponse,
+  PopularProductsInquiry,
   ProductCard,
   ProductDetail,
   ProductResponse,
@@ -17,12 +18,15 @@ import {
   RemoveProductInput,
   SearchSuggestion,
   SearchSuggestionsInput,
+  SetProductFeaturedByAdminInput,
+  TrendingProductsInquiry,
   UpdateProductInput,
   UpdateProductStatusByAdminInput,
 } from '../../libs/dto/product/product';
 import { ProductSortBy, ProductStatus } from '../../libs/enums/product.enum';
 import { CategoryStatus } from '../../libs/enums/product-category.enum';
 import { LikeGroup } from '../../libs/enums/like.enum';
+import { OrderStatus } from '../../libs/enums/order.enum';
 import { ViewGroup } from '../../libs/enums/view.enum';
 import { Message } from '../../libs/enums/common.enum';
 import type { JwtPayload } from '../../libs/types/common';
@@ -40,6 +44,8 @@ export class ProductService {
     private readonly viewModel: Model<any>,
     @InjectModel('Member')
     private readonly memberModel: Model<any>,
+    @InjectModel('OrderItem')
+    private readonly orderItemModel: Model<any>,
   ) {}
 
   private readonly maxCatalogLimit = 50;
@@ -160,6 +166,12 @@ export class ProductService {
       images: product.images || [],
       thumbnail: product.thumbnail || null,
       status: product.status,
+      isFeatured: !!product.isFeatured,
+      featuredRank:
+        product.featuredRank === undefined || product.featuredRank === null
+          ? undefined
+          : Number(product.featuredRank),
+      featuredAt: product.featuredAt || undefined,
       views: product.views,
       likes: product.likes,
       meLiked: false,
@@ -226,6 +238,53 @@ export class ProductService {
       default:
         return { createdAt: -1, _id: 1 };
     }
+  }
+
+  private popularityScoreExpression(): any {
+    return {
+      $add: [
+        { $multiply: ['$ordersCount', 5] },
+        { $multiply: ['$likes', 2] },
+        { $multiply: ['$views', 0.2] },
+      ],
+    };
+  }
+
+  private async fetchPopularProducts(limit: number): Promise<any[]> {
+    return this.productModel
+      .aggregate([
+        {
+          $match: {
+            status: ProductStatus.PUBLISHED,
+            deletedAt: null,
+          },
+        },
+        {
+          $addFields: {
+            popularityScore: this.popularityScoreExpression(),
+          },
+        },
+        { $sort: { popularityScore: -1, createdAt: -1, _id: 1 } },
+        { $limit: limit },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            slug: 1,
+            thumbnail: 1,
+            price: 1,
+            salePrice: 1,
+            stockQty: 1,
+            status: 1,
+            likes: 1,
+            views: 1,
+            ratingAvg: 1,
+            reviewsCount: 1,
+            createdAt: 1,
+          },
+        },
+      ])
+      .exec();
   }
 
   public async createProduct(
@@ -468,27 +527,30 @@ export class ProductService {
   ): Promise<ProductCard[]> {
     try {
       const limit = this.normalizeCatalogLimit(input?.limit ?? 8);
-
       const products = await this.productModel
         .aggregate([
           {
             $match: {
               status: ProductStatus.PUBLISHED,
               deletedAt: null,
+              isFeatured: true,
             },
           },
           {
             $addFields: {
-              popularityScore: {
-                $add: [
-                  { $multiply: ['$ordersCount', 5] },
-                  { $multiply: ['$likes', 2] },
-                  { $multiply: ['$views', 0.2] },
-                ],
+              featuredRankSort: {
+                $ifNull: ['$featuredRank', 2147483647],
               },
             },
           },
-          { $sort: { popularityScore: -1, createdAt: -1, _id: 1 } },
+          {
+            $sort: {
+              featuredRankSort: 1,
+              featuredAt: -1,
+              createdAt: -1,
+              _id: 1,
+            },
+          },
           { $limit: limit },
           {
             $project: {
@@ -513,6 +575,167 @@ export class ProductService {
       return products.map((product: any) => this.toProductCard(product));
     } catch (err) {
       console.log('Error, Service.getFeaturedProducts', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getPopularProducts(
+    input: PopularProductsInquiry,
+  ): Promise<ProductCard[]> {
+    try {
+      const limit = this.normalizeCatalogLimit(input?.limit ?? 8);
+      const products = await this.fetchPopularProducts(limit);
+      return products.map((product: any) => this.toProductCard(product));
+    } catch (err) {
+      console.log('Error, Service.getPopularProducts', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getTrendingProducts(
+    input: TrendingProductsInquiry,
+  ): Promise<ProductCard[]> {
+    try {
+      const limit = this.normalizeCatalogLimit(input?.limit ?? 8);
+      const windowDays = Math.min(Math.max(input?.windowDays ?? 7, 1), 30);
+      const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+
+      const [recentViews, recentLikes, recentOrders] = await Promise.all([
+        this.viewModel
+          .aggregate([
+            {
+              $match: {
+                viewGroup: ViewGroup.PRODUCT,
+                createdAt: { $gte: since },
+              },
+            },
+            { $group: { _id: '$viewRefId', count: { $sum: 1 } } },
+          ])
+          .exec(),
+        this.likeModel
+          .aggregate([
+            {
+              $match: {
+                likeGroup: LikeGroup.PRODUCT,
+                createdAt: { $gte: since },
+              },
+            },
+            { $group: { _id: '$likeRefId', count: { $sum: 1 } } },
+          ])
+          .exec(),
+        this.orderItemModel
+          .aggregate([
+            {
+              $match: {
+                createdAt: { $gte: since },
+                status: {
+                  $nin: [OrderStatus.CANCELED, OrderStatus.REFUNDED],
+                },
+              },
+            },
+            { $group: { _id: '$productId', count: { $sum: '$quantity' } } },
+          ])
+          .exec(),
+      ]);
+
+      const interactionMap = new Map<
+        string,
+        { views: number; likes: number; orders: number }
+      >();
+
+      const ensureBucket = (productId: string) => {
+        if (!interactionMap.has(productId)) {
+          interactionMap.set(productId, { views: 0, likes: 0, orders: 0 });
+        }
+      };
+
+      for (const row of recentViews) {
+        const productId = row._id?.toString();
+        if (!productId) continue;
+        ensureBucket(productId);
+        interactionMap.get(productId)!.views = Number(row.count || 0);
+      }
+
+      for (const row of recentLikes) {
+        const productId = row._id?.toString();
+        if (!productId) continue;
+        ensureBucket(productId);
+        interactionMap.get(productId)!.likes = Number(row.count || 0);
+      }
+
+      for (const row of recentOrders) {
+        const productId = row._id?.toString();
+        if (!productId) continue;
+        ensureBucket(productId);
+        interactionMap.get(productId)!.orders = Number(row.count || 0);
+      }
+
+      const candidateIds = Array.from(interactionMap.keys()).map(
+        (id) => new Types.ObjectId(id),
+      );
+
+      if (candidateIds.length === 0) {
+        const fallback = await this.productModel
+          .find({
+            status: ProductStatus.PUBLISHED,
+            deletedAt: null,
+          })
+          .sort({ createdAt: -1, _id: 1 })
+          .limit(limit)
+          .select(
+            '_id title slug thumbnail price salePrice stockQty status likes views ratingAvg reviewsCount createdAt',
+          )
+          .lean()
+          .exec();
+
+        return fallback.map((product: any) => this.toProductCard(product));
+      }
+
+      const candidateProducts = await this.productModel
+        .find({
+          _id: { $in: candidateIds },
+          status: ProductStatus.PUBLISHED,
+          deletedAt: null,
+        })
+        .select(
+          '_id title slug thumbnail price salePrice stockQty status likes views ratingAvg reviewsCount createdAt',
+        )
+        .lean()
+        .exec();
+
+      const ranked = candidateProducts
+        .map((product: any) => {
+          const interaction = interactionMap.get(product._id.toString()) || {
+            views: 0,
+            likes: 0,
+            orders: 0,
+          };
+
+          const trendingScore =
+            interaction.orders * 8 +
+            interaction.likes * 3 +
+            interaction.views * 0.5;
+
+          return {
+            product,
+            trendingScore,
+          };
+        })
+        .sort((a, b) => {
+          if (b.trendingScore !== a.trendingScore) {
+            return b.trendingScore - a.trendingScore;
+          }
+          return (
+            new Date(b.product.createdAt).getTime() -
+            new Date(a.product.createdAt).getTime()
+          );
+        })
+        .slice(0, limit)
+        .map((entry) => this.toProductCard(entry.product));
+
+      return ranked;
+    } catch (err) {
+      console.log('Error, Service.getTrendingProducts', err.message);
       throw new BadRequestException(err.message || Message.BAD_REQUEST);
     }
   }
@@ -808,6 +1031,42 @@ export class ProductService {
     }
   }
 
+  public async getFeaturedProductsByAdmin(
+    input?: AdminProductsInquiry,
+  ): Promise<MyProductsResponse> {
+    try {
+      const page = input?.page ?? 1;
+      const limit = input?.limit ?? 20;
+      const skip = (page - 1) * limit;
+
+      const filter: any = {
+        deletedAt: null,
+        isFeatured: true,
+        ...(input?.status ? { status: input.status } : {}),
+        ...(input?.memberId ? { memberId: input.memberId } : {}),
+        ...this.buildSearchFilter(input?.search),
+      };
+
+      const [products, total] = await Promise.all([
+        this.productModel
+          .find(filter)
+          .sort({ featuredRank: 1, featuredAt: -1, createdAt: -1, _id: 1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.productModel.countDocuments(filter).exec(),
+      ]);
+
+      return {
+        list: products.map((product: any) => this.toProductResponse(product)),
+        metaCounter: { total },
+      };
+    } catch (err) {
+      console.log('Error, Service.getFeaturedProductsByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
   public async getProductByIdByAdmin(
     productId: string,
   ): Promise<ProductResponse> {
@@ -845,6 +1104,39 @@ export class ProductService {
       return this.toProductResponse(product);
     } catch (err) {
       console.log('Error, Service.updateProductStatusByAdmin', err.message);
+      throw new BadRequestException(err.message || Message.UPDATE_FAILED);
+    }
+  }
+
+  public async setProductFeaturedByAdmin(
+    input: SetProductFeaturedByAdminInput,
+  ): Promise<ProductResponse> {
+    try {
+      const product = await this.productModel
+        .findOne({ _id: input.productId, deletedAt: null })
+        .exec();
+
+      if (!product) {
+        throw new BadRequestException(Message.NO_DATA_FOUND);
+      }
+
+      if (input.isFeatured) {
+        product.isFeatured = true;
+        if (input.featuredRank !== undefined) {
+          product.featuredRank = input.featuredRank;
+        }
+        product.featuredAt = new Date();
+      } else {
+        product.isFeatured = false;
+        product.featuredRank = null;
+        product.featuredAt = null;
+      }
+
+      await product.save();
+
+      return this.toProductResponse(product);
+    } catch (err) {
+      console.log('Error, Service.setProductFeaturedByAdmin', err.message);
       throw new BadRequestException(err.message || Message.UPDATE_FAILED);
     }
   }

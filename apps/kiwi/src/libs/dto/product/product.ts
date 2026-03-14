@@ -207,6 +207,33 @@ export class FeaturedProductsInquiry {
 }
 
 @InputType()
+export class PopularProductsInquiry {
+  @Field(() => Int, { defaultValue: 8 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit: number;
+}
+
+@InputType()
+export class TrendingProductsInquiry {
+  @Field(() => Int, { defaultValue: 8 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit: number;
+
+  @Field(() => Int, { defaultValue: 7 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  windowDays: number;
+}
+
+@InputType()
 export class RelatedProductsInquiry {
   @Field(() => String)
   @IsMongoId()
@@ -277,6 +304,26 @@ export class UpdateProductStatusByAdminInput {
   @Field(() => ProductStatus)
   @IsEnum(ProductStatus)
   status: ProductStatus;
+}
+
+@InputType()
+export class SetProductFeaturedByAdminInput {
+  @Field(() => String)
+  @IsMongoId()
+  productId: string;
+
+  @Field(() => Boolean)
+  @Type(() => Boolean)
+  @IsBoolean()
+  isFeatured: boolean;
+
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  featuredRank?: number;
 }
 
 @ObjectType()
@@ -394,6 +441,15 @@ export class ProductDetail {
 
   @Field(() => ProductStatus)
   status: ProductStatus;
+
+  @Field(() => Boolean)
+  isFeatured: boolean;
+
+  @Field(() => Int, { nullable: true })
+  featuredRank?: number;
+
+  @Field(() => Date, { nullable: true })
+  featuredAt?: Date;
 
   @Field(() => Int)
   views: number;

@@ -55,6 +55,10 @@ export const ProductSchema = new Schema(
       index: true,
     },
 
+    isFeatured: { type: Boolean, default: false, index: true },
+    featuredRank: { type: Number, default: null, min: 1 },
+    featuredAt: { type: Date, default: null },
+
     views: { type: Number, default: 0 },
     likes: { type: Number, default: 0 },
     ordersCount: { type: Number, default: 0 },
@@ -71,6 +75,7 @@ export const ProductSchema = new Schema(
 
 ProductSchema.index({ memberId: 1, createdAt: -1 });
 ProductSchema.index({ memberId: 1, status: 1 });
+ProductSchema.index({ isFeatured: 1, featuredRank: 1, featuredAt: -1, _id: 1 });
 ProductSchema.index({ memberId: 1, sku: 1 }, { unique: true, sparse: true });
 ProductSchema.index({ slug: 1 }, { unique: true, sparse: true });
 ProductSchema.index({ title: 'text', description: 'text', tags: 'text' });

@@ -9,6 +9,7 @@ import {
   FeaturedProductsInquiry,
   MyProductsInquiry,
   MyProductsResponse,
+  PopularProductsInquiry,
   ProductCard,
   ProductDetail,
   ProductResponse,
@@ -16,6 +17,8 @@ import {
   RemoveProductInput,
   SearchSuggestion,
   SearchSuggestionsInput,
+  SetProductFeaturedByAdminInput,
+  TrendingProductsInquiry,
   UpdateProductInput,
   UpdateProductStatusByAdminInput,
 } from '../../libs/dto/product/product';
@@ -81,6 +84,22 @@ export class ProductResolver {
   }
 
   @Query(() => [ProductCard])
+  public async getPopularProducts(
+    @Args('input') input: PopularProductsInquiry,
+  ): Promise<ProductCard[]> {
+    console.log('Query: getPopularProducts');
+    return await this.productService.getPopularProducts(input);
+  }
+
+  @Query(() => [ProductCard])
+  public async getTrendingProducts(
+    @Args('input') input: TrendingProductsInquiry,
+  ): Promise<ProductCard[]> {
+    console.log('Query: getTrendingProducts');
+    return await this.productService.getTrendingProducts(input);
+  }
+
+  @Query(() => [ProductCard])
   public async getRelatedProducts(
     @Args('input') input: RelatedProductsInquiry,
   ): Promise<ProductCard[]> {
@@ -129,6 +148,16 @@ export class ProductResolver {
 
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(MemberType.ADMIN)
+  @Query(() => MyProductsResponse)
+  public async getFeaturedProductsByAdmin(
+    @Args('input', { nullable: true }) input?: AdminProductsInquiry,
+  ): Promise<MyProductsResponse> {
+    console.log('Query: getFeaturedProductsByAdmin');
+    return await this.productService.getFeaturedProductsByAdmin(input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
   @Query(() => ProductResponse)
   public async getProductByIdByAdmin(
     @Args('productId') productId: string,
@@ -145,6 +174,16 @@ export class ProductResolver {
   ): Promise<ProductResponse> {
     console.log('Mutation: updateProductStatusByAdmin');
     return await this.productService.updateProductStatusByAdmin(input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.ADMIN)
+  @Mutation(() => ProductResponse)
+  public async setProductFeaturedByAdmin(
+    @Args('input') input: SetProductFeaturedByAdminInput,
+  ): Promise<ProductResponse> {
+    console.log('Mutation: setProductFeaturedByAdmin');
+    return await this.productService.setProductFeaturedByAdmin(input);
   }
 
   @UseGuards(AuthGuard, RolesGuard)
