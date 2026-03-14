@@ -51,6 +51,88 @@ export class ProductService {
   private readonly maxCatalogLimit = 50;
   private readonly defaultSuggestionLimit = 6;
   private readonly maxSuggestionLimit = 8;
+  private readonly defaultAssetBaseUrl = 'http://localhost:3007';
+
+  private resolveAssetBaseUrl(): string {
+    return (process.env.APP_URL ?? this.defaultAssetBaseUrl)
+      .trim()
+      .replace(/\/$/, '');
+  }
+
+  private toRelativeUploadPath(
+    value?: string | null,
+  ): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return trimmed;
+    }
+
+    if (trimmed.startsWith('/uploads/')) {
+      return trimmed;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.pathname.startsWith('/uploads/')) {
+        return `${parsed.pathname}${parsed.search || ''}${parsed.hash || ''}`;
+      }
+    } catch {
+      return trimmed;
+    }
+
+    return trimmed;
+  }
+
+  private toPublicAssetUrl(value?: string | null): string | null | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return trimmed;
+    }
+
+    if (trimmed.startsWith('/uploads/')) {
+      return `${this.resolveAssetBaseUrl()}${trimmed}`;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      if (parsed.pathname.startsWith('/uploads/')) {
+        return `${this.resolveAssetBaseUrl()}${parsed.pathname}${parsed.search || ''}${parsed.hash || ''}`;
+      }
+      return trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  private normalizeMediaInput<
+    T extends { images?: string[]; thumbnail?: string },
+  >(input: T): T {
+    return {
+      ...input,
+      images: input.images?.map(
+        (image) => this.toRelativeUploadPath(image) || '',
+      ),
+      thumbnail: this.toRelativeUploadPath(input.thumbnail) as
+        | string
+        | undefined,
+    };
+  }
 
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -123,7 +205,7 @@ export class ProductService {
       _id: product._id.toString(),
       title: product.title,
       slug: product.slug || this.buildFallbackSlug(product),
-      thumbnail: product.thumbnail || null,
+      thumbnail: this.toPublicAssetUrl(product.thumbnail) || undefined,
       price: product.price,
       salePrice: product.salePrice,
       stockQty: product.stockQty,
@@ -163,8 +245,10 @@ export class ProductService {
       stockQty: product.stockQty,
       minOrderQty: product.minOrderQty,
       tags: product.tags || [],
-      images: product.images || [],
-      thumbnail: product.thumbnail || null,
+      images: (product.images || []).map((image: string) =>
+        this.toPublicAssetUrl(image),
+      ),
+      thumbnail: this.toPublicAssetUrl(product.thumbnail) || undefined,
       status: product.status,
       isFeatured: !!product.isFeatured,
       featuredRank:
@@ -292,15 +376,17 @@ export class ProductService {
     input: CreateProductInput,
   ): Promise<ProductResponse> {
     try {
-      await this.validateCategoryIds(input.categoryIds);
+      const normalizedInput = this.normalizeMediaInput(input);
 
-      const slug = await this.generateUniqueSlug(input.title);
+      await this.validateCategoryIds(normalizedInput.categoryIds);
+
+      const slug = await this.generateUniqueSlug(normalizedInput.title);
 
       const newProduct = await this.productModel.create({
-        ...input,
+        ...normalizedInput,
         slug,
         memberId,
-        status: input.status ?? ProductStatus.DRAFT,
+        status: normalizedInput.status ?? ProductStatus.DRAFT,
         deletedAt: null,
       });
 
@@ -319,7 +405,8 @@ export class ProductService {
     input: UpdateProductInput,
   ): Promise<ProductResponse> {
     try {
-      const { productId, ...updateData } = input;
+      const { productId, ...rawUpdateData } = input;
+      const updateData = this.normalizeMediaInput(rawUpdateData);
 
       const existingProduct = await this.productModel
         .findOne({ _id: productId, memberId, deletedAt: null })

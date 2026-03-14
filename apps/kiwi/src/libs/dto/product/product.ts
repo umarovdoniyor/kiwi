@@ -102,12 +102,12 @@ export class CreateProductInput {
   @Field(() => [String])
   @IsArray()
   @ArrayMinSize(1)
-  @IsUrl({}, { each: true })
+  @IsUrl({ require_tld: false }, { each: true })
   images: string[];
 
   @Field(() => String, { nullable: true })
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   thumbnail?: string;
 
   @Field(() => ProductStatus, { nullable: true })

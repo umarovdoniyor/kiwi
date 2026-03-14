@@ -52,7 +52,24 @@ export class UploaderService {
     return validExts.has(filenameExt) ? filenameExt : byMime;
   }
 
-  private async storeFile(file: UploadFile, target: string): Promise<string> {
+  private resolveBaseUrl(requestBaseUrl?: string): string {
+    const envBaseUrl = process.env.APP_URL?.trim();
+    if (envBaseUrl) {
+      return envBaseUrl.replace(/\/$/, '');
+    }
+
+    if (requestBaseUrl?.trim()) {
+      return requestBaseUrl.trim().replace(/\/$/, '');
+    }
+
+    return 'http://localhost:3007';
+  }
+
+  private async storeFile(
+    file: UploadFile,
+    target: string,
+    requestBaseUrl?: string,
+  ): Promise<string> {
     if (!file?.filename || !file?.createReadStream || !file?.mimetype) {
       throw new BadRequestException(Message.UPLOAD_FAILED);
     }
@@ -63,7 +80,8 @@ export class UploaderService {
 
     const uploadDir = join(process.cwd(), 'uploads', safeTarget);
     const absolutePath = join(uploadDir, imageName);
-    const publicPath = `/uploads/${safeTarget}/${imageName}`;
+    const baseUrl = this.resolveBaseUrl(requestBaseUrl);
+    const publicPath = `${baseUrl}/uploads/${safeTarget}/${imageName}`;
 
     await mkdir(uploadDir, { recursive: true });
 
@@ -78,14 +96,16 @@ export class UploaderService {
   public async imageUploader(
     fileInput: Promise<UploadFile> | UploadFile,
     target: string,
+    requestBaseUrl?: string,
   ): Promise<string> {
     const file = await fileInput;
-    return this.storeFile(file, target);
+    return this.storeFile(file, target, requestBaseUrl);
   }
 
   public async imagesUploader(
     fileInputs: Array<Promise<UploadFile> | UploadFile>,
     target: string,
+    requestBaseUrl?: string,
   ): Promise<string[]> {
     if (!fileInputs?.length) {
       throw new BadRequestException(Message.UPLOAD_FAILED);
@@ -93,7 +113,7 @@ export class UploaderService {
 
     const uploads = fileInputs.map(async (fileInput) => {
       const file = await fileInput;
-      return this.storeFile(file, target);
+      return this.storeFile(file, target, requestBaseUrl);
     });
 
     return Promise.all(uploads);

@@ -19,6 +19,7 @@ import { GraphQLErrorInput } from './libs/types/common';
       playground: true,
       autoSchemaFile: true,
       uploads: false,
+      context: ({ req, res }: { req: unknown; res: unknown }) => ({ req, res }),
       formatError: (error: GraphQLErrorInput) => {
         console.log('error: ', error);
         const graphQLFormattedError = {
