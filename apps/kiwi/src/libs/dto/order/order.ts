@@ -443,6 +443,180 @@ export class CancelMyOrderInput {
 }
 
 @InputType()
+export class VendorOrdersInquiryInput {
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number;
+
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  status?: string;
+
+  @Field(() => String, { nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  orderNo?: string;
+}
+
+@ObjectType()
+export class VendorOrderItemDTO {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  orderId: string;
+
+  @Field(() => String)
+  memberId: string;
+
+  @Field(() => String)
+  productId: string;
+
+  @Field(() => String)
+  vendorId: string;
+
+  @Field(() => String, { nullable: true })
+  status?: string;
+
+  @Field(() => Int)
+  quantity: number;
+
+  @Field(() => Number)
+  unitPrice: number;
+
+  @Field(() => Number, { nullable: true })
+  salePrice?: number;
+
+  @Field(() => Number)
+  appliedPrice: number;
+
+  @Field(() => Number)
+  lineTotal: number;
+
+  @Field(() => String)
+  productSnapshotTitle: string;
+
+  @Field(() => String, { nullable: true })
+  productSnapshotThumbnail?: string;
+
+  @Field(() => String, { nullable: true })
+  productSnapshotUnit?: string;
+
+  @Field(() => String, { nullable: true })
+  productSnapshotSku?: string;
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}
+
+@ObjectType()
+export class VendorOrderDTO {
+  @Field(() => ID)
+  _id: string;
+
+  @Field(() => String)
+  orderNo: string;
+
+  @Field(() => String)
+  memberId: string;
+
+  @Field(() => String)
+  status: string;
+
+  @Field(() => String, { nullable: true })
+  paymentMethod?: string;
+
+  @Field(() => String, { nullable: true })
+  paymentStatus?: string;
+
+  @Field(() => Number)
+  subtotal: number;
+
+  @Field(() => Number)
+  discountAmount: number;
+
+  @Field(() => Number)
+  deliveryFee: number;
+
+  @Field(() => Number)
+  taxAmount: number;
+
+  @Field(() => Number)
+  totalAmount: number;
+
+  @Field(() => String)
+  currency: string;
+
+  @Field(() => String, { nullable: true })
+  addressFullName?: string;
+
+  @Field(() => String, { nullable: true })
+  addressPhone?: string;
+
+  @Field(() => String, { nullable: true })
+  addressLine1?: string;
+
+  @Field(() => String, { nullable: true })
+  addressLine2?: string;
+
+  @Field(() => String, { nullable: true })
+  addressCity?: string;
+
+  @Field(() => String, { nullable: true })
+  addressState?: string;
+
+  @Field(() => String, { nullable: true })
+  addressPostalCode?: string;
+
+  @Field(() => String, { nullable: true })
+  addressCountry?: string;
+
+  @Field(() => String, { nullable: true })
+  note?: string;
+
+  @Field(() => Date, { nullable: true })
+  placedAt?: Date;
+
+  @Field(() => Date, { nullable: true })
+  canceledAt?: Date;
+
+  @Field(() => Date, { nullable: true })
+  deliveredAt?: Date;
+
+  @Field(() => [VendorOrderItemDTO])
+  items: VendorOrderItemDTO[];
+
+  @Field(() => Date)
+  createdAt: Date;
+
+  @Field(() => Date)
+  updatedAt: Date;
+}
+
+@ObjectType()
+export class VendorOrdersResult {
+  @Field(() => [VendorOrderDTO])
+  list: VendorOrderDTO[];
+
+  @Field(() => MetaCounter)
+  metaCounter: MetaCounter;
+}
+
+@InputType()
 export class AdminOrdersInquiryInput {
   @Field(() => Int)
   @Type(() => Number)

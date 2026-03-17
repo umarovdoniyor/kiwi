@@ -23,6 +23,10 @@ import {
   UpdateMyVendorOrderItemStatusInput,
   UpdateCartItemQtyInput,
   ValidateCartForCheckoutOutput,
+  VendorOrderDTO,
+  VendorOrderItemDTO,
+  VendorOrdersInquiryInput,
+  VendorOrdersResult,
   VendorOrderItemStatusUpdateOutput,
 } from '../../libs/dto/order/order';
 import {
@@ -182,6 +186,28 @@ export class OrderService {
     };
   }
 
+  private toVendorOrderItemResponse(item: any): VendorOrderItemDTO {
+    return {
+      _id: item._id.toString(),
+      orderId: item.orderId.toString(),
+      memberId: item.memberId.toString(),
+      productId: item.productId.toString(),
+      vendorId: item.vendorId.toString(),
+      status: item.status,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      salePrice: item.salePrice,
+      appliedPrice: item.appliedPrice,
+      lineTotal: item.lineTotal,
+      productSnapshotTitle: item.productSnapshotTitle,
+      productSnapshotThumbnail: item.productSnapshotThumbnail,
+      productSnapshotUnit: item.productSnapshotUnit,
+      productSnapshotSku: item.productSnapshotSku,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+  }
+
   private toCartResponse(cart: any, items: any[]): Cart {
     return {
       _id: cart._id.toString(),
@@ -258,6 +284,38 @@ export class OrderService {
       canceledAt: order.canceledAt,
       deliveredAt: order.deliveredAt,
       items: items.map((item) => this.toOrderItemByAdmin(item)),
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  }
+
+  private toVendorOrderResponse(order: any, items: any[]): VendorOrderDTO {
+    return {
+      _id: order._id.toString(),
+      orderNo: order.orderNo,
+      memberId: order.memberId.toString(),
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      subtotal: order.subtotal,
+      discountAmount: order.discountAmount,
+      deliveryFee: order.deliveryFee,
+      taxAmount: order.taxAmount,
+      totalAmount: order.totalAmount,
+      currency: order.currency,
+      addressFullName: order.addressFullName,
+      addressPhone: order.addressPhone,
+      addressLine1: order.addressLine1,
+      addressLine2: order.addressLine2,
+      addressCity: order.addressCity,
+      addressState: order.addressState,
+      addressPostalCode: order.addressPostalCode,
+      addressCountry: order.addressCountry,
+      note: order.note,
+      placedAt: order.placedAt,
+      canceledAt: order.canceledAt,
+      deliveredAt: order.deliveredAt,
+      items: items.map((item) => this.toVendorOrderItemResponse(item)),
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
@@ -495,6 +553,28 @@ export class OrderService {
     return this.toOrderByAdmin(order, items);
   }
 
+  private async findVendorOrderWithItemsById(
+    vendorId: string,
+    orderId: string,
+  ): Promise<VendorOrderDTO | null> {
+    const order = await this.orderModel.findById(orderId).exec();
+
+    if (!order) {
+      return null;
+    }
+
+    const items = await this.orderItemModel
+      .find({ orderId: order._id, vendorId })
+      .sort({ createdAt: 1 })
+      .exec();
+
+    if (items.length === 0) {
+      return null;
+    }
+
+    return this.toVendorOrderResponse(order, items);
+  }
+
   private getVendorItemTransitionRank(status?: OrderStatus): number {
     switch (status) {
       case OrderStatus.PACKING:
@@ -608,6 +688,130 @@ export class OrderService {
     } catch (err) {
       console.log('Error, Service.updateMyVendorOrderItemStatus', err.message);
       throw new BadRequestException(err.message || Message.UPDATE_FAILED);
+    }
+  }
+
+  public async getMyVendorOrders(
+    vendorId: string,
+    input: VendorOrdersInquiryInput,
+  ): Promise<VendorOrdersResult> {
+    try {
+      const page = input?.page ?? 1;
+      const limit = input?.limit ?? 20;
+      const skip = (page - 1) * limit;
+      const trimmedOrderNo = input?.orderNo?.trim();
+      const trimmedStatus = input?.status?.trim();
+
+      if (trimmedStatus && !Object.values(OrderStatus).includes(trimmedStatus as OrderStatus)) {
+        throw new BadRequestException('Invalid order status');
+      }
+
+      const vendorOrderIds = await this.orderItemModel
+        .distinct('orderId', { vendorId })
+        .exec();
+
+      if (vendorOrderIds.length === 0) {
+        return {
+          list: [],
+          metaCounter: { total: 0 },
+        };
+      }
+
+      let scopedOrderIds = vendorOrderIds;
+
+      if (trimmedStatus) {
+        const vendorOrderIdsByItemStatus = await this.orderItemModel
+          .distinct('orderId', { vendorId, status: trimmedStatus })
+          .exec();
+
+        const vendorOrderIdsByOrderStatus = await this.orderModel
+          .distinct('_id', { _id: { $in: vendorOrderIds }, status: trimmedStatus })
+          .exec();
+
+        const scopedOrderIdsSet = new Set<string>([
+          ...vendorOrderIdsByItemStatus.map((id: any) => id.toString()),
+          ...vendorOrderIdsByOrderStatus.map((id: any) => id.toString()),
+        ]);
+
+        scopedOrderIds = vendorOrderIds.filter((id: any) =>
+          scopedOrderIdsSet.has(id.toString()),
+        );
+      }
+
+      if (scopedOrderIds.length === 0) {
+        return {
+          list: [],
+          metaCounter: { total: 0 },
+        };
+      }
+
+      const filter: any = {
+        _id: { $in: scopedOrderIds },
+      };
+
+      if (trimmedOrderNo) {
+        filter.orderNo = { $regex: trimmedOrderNo, $options: 'i' };
+      }
+
+      const [orders, total] = await Promise.all([
+        this.orderModel
+          .find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .exec(),
+        this.orderModel.countDocuments(filter).exec(),
+      ]);
+
+      const pagedOrderIds = orders.map((order) => order._id);
+      const pagedItemFilter: any = {
+        orderId: { $in: pagedOrderIds },
+        vendorId,
+      };
+
+      const orderItems = await this.orderItemModel
+        .find(pagedItemFilter)
+        .sort({ createdAt: 1 })
+        .exec();
+
+      const itemsByOrderId = new Map<string, any[]>();
+      for (const item of orderItems) {
+        const key = item.orderId.toString();
+        if (!itemsByOrderId.has(key)) {
+          itemsByOrderId.set(key, []);
+        }
+        itemsByOrderId.get(key)?.push(item);
+      }
+
+      const list = orders
+        .map((order) => {
+          const items = itemsByOrderId.get(order._id.toString()) || [];
+          if (items.length === 0) {
+            return null;
+          }
+          return this.toVendorOrderResponse(order, items);
+        })
+        .filter((order): order is VendorOrderDTO => order !== null);
+
+      return {
+        list,
+        metaCounter: { total },
+      };
+    } catch (err) {
+      console.log('Error, Service.getMyVendorOrders', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
+    }
+  }
+
+  public async getMyVendorOrderById(
+    vendorId: string,
+    orderId: string,
+  ): Promise<VendorOrderDTO | null> {
+    try {
+      return await this.findVendorOrderWithItemsById(vendorId, orderId);
+    } catch (err) {
+      console.log('Error, Service.getMyVendorOrderById', err.message);
+      throw new BadRequestException(err.message || Message.BAD_REQUEST);
     }
   }
 

@@ -104,6 +104,8 @@ export const OrderItemSchema = new Schema(
 
 OrderItemSchema.index({ orderId: 1, createdAt: 1 });
 OrderItemSchema.index({ memberId: 1, createdAt: -1 });
+OrderItemSchema.index({ vendorId: 1, createdAt: -1 });
+OrderItemSchema.index({ vendorId: 1, status: 1, createdAt: -1 });
 
 export const OrderCounterSchema = new Schema(
   {

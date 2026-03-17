@@ -19,6 +19,9 @@ import {
   UpdateMyVendorOrderItemStatusInput,
   UpdateCartItemQtyInput,
   ValidateCartForCheckoutOutput,
+  VendorOrderDTO,
+  VendorOrdersInquiryInput,
+  VendorOrdersResult,
   VendorOrderItemStatusUpdateOutput,
 } from '../../libs/dto/order/order';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -145,6 +148,28 @@ export class OrderResolver {
       vendorId,
       input,
     );
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Query(() => VendorOrdersResult)
+  public async getMyVendorOrders(
+    @AuthMember('sub') vendorId: string,
+    @Args('input') input: VendorOrdersInquiryInput,
+  ): Promise<VendorOrdersResult> {
+    console.log('Query: getMyVendorOrders');
+    return await this.orderService.getMyVendorOrders(vendorId, input);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(MemberType.VENDOR)
+  @Query(() => VendorOrderDTO, { nullable: true })
+  public async getMyVendorOrderById(
+    @AuthMember('sub') vendorId: string,
+    @Args('orderId') orderId: string,
+  ) {
+    console.log('Query: getMyVendorOrderById');
+    return await this.orderService.getMyVendorOrderById(vendorId, orderId);
   }
 
   @UseGuards(AuthGuard, RolesGuard)
