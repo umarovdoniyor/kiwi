@@ -702,7 +702,10 @@ export class OrderService {
       const trimmedOrderNo = input?.orderNo?.trim();
       const trimmedStatus = input?.status?.trim();
 
-      if (trimmedStatus && !Object.values(OrderStatus).includes(trimmedStatus as OrderStatus)) {
+      if (
+        trimmedStatus &&
+        !Object.values(OrderStatus).includes(trimmedStatus as OrderStatus)
+      ) {
         throw new BadRequestException('Invalid order status');
       }
 
@@ -725,7 +728,10 @@ export class OrderService {
           .exec();
 
         const vendorOrderIdsByOrderStatus = await this.orderModel
-          .distinct('_id', { _id: { $in: vendorOrderIds }, status: trimmedStatus })
+          .distinct('_id', {
+            _id: { $in: vendorOrderIds },
+            status: trimmedStatus,
+          })
           .exec();
 
         const scopedOrderIdsSet = new Set<string>([

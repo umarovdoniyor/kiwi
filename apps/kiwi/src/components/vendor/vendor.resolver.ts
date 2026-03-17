@@ -89,6 +89,7 @@ export class VendorResolver {
     @Args('input') input: VendorProductReviewsInquiryInput,
   ): Promise<VendorProductReviewsPage> {
     console.log('Query: getVendorProductReviews');
+
     return await this.vendorService.getVendorProductReviews(vendorId, input);
   }
 }

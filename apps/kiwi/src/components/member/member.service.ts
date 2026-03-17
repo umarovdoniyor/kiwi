@@ -33,6 +33,8 @@ export class MemberService implements OnApplicationBootstrap {
   constructor(
     @InjectModel('Member')
     private readonly memberModel: Model<MemberDocument>,
+    @InjectModel('Order')
+    private readonly orderModel: Model<any>,
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
   ) {}
@@ -120,9 +122,10 @@ export class MemberService implements OnApplicationBootstrap {
     };
   }
 
-  private toMemberByAdmin(doc: MemberDocument): MemberByAdmin {
+  private toMemberByAdmin(doc: MemberDocument, ordersCount = 0): MemberByAdmin {
     return {
       _id: doc._id.toString(),
+      ordersCount,
       memberEmail: doc.memberEmail,
       memberPhone: doc.memberPhone,
       memberNickname: doc.memberNickname,
@@ -383,8 +386,40 @@ export class MemberService implements OnApplicationBootstrap {
         this.memberModel.countDocuments(filter).exec(),
       ]);
 
+      const memberIds = members.map((member) => member._id);
+      const ordersCountAgg =
+        memberIds.length > 0
+          ? await this.orderModel
+              .aggregate([
+                {
+                  $match: {
+                    memberId: { $in: memberIds },
+                  },
+                },
+                {
+                  $group: {
+                    _id: '$memberId',
+                    count: { $sum: 1 },
+                  },
+                },
+              ])
+              .exec()
+          : [];
+
+      const ordersCountByMemberId = new Map<string, number>(
+        ordersCountAgg.map((entry: any) => [
+          entry._id.toString(),
+          Number(entry.count || 0),
+        ]),
+      );
+
       return {
-        list: members.map((member) => this.toMemberByAdmin(member)),
+        list: members.map((member) =>
+          this.toMemberByAdmin(
+            member,
+            ordersCountByMemberId.get(member._id.toString()) || 0,
+          ),
+        ),
         metaCounter: { total },
       };
     } catch (err) {

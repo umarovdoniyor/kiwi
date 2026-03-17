@@ -108,6 +108,9 @@ export class MemberByAdmin {
   @Field(() => ID)
   _id: string;
 
+  @Field(() => Int)
+  ordersCount: number;
+
   @Field({ nullable: true })
   memberEmail?: string;
 
