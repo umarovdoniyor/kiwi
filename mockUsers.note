@@ -1,3 +1,9 @@
+ADMIN_EMAIL=admin@grocery.com
+ADMIN_PASSWORD=SuperSecure123!
+ADMIN_NICKNAME=superadmin
+ADMIN_FIRSTNAME=System
+ADMIN_LASTNAME=Admin
+------------
 Mock Users
 1
 
