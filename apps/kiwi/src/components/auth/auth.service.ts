@@ -24,6 +24,7 @@ export class AuthService {
     const payload: JwtPayload = {
       sub: member._id,
       memberEmail: member.memberEmail,
+      memberNickname: member.memberNickname,
       memberType: member.memberType,
       memberStatus: member.memberStatus,
     };

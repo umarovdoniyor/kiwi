@@ -25,6 +25,7 @@ export interface GraphQLErrorInput {
 export interface JwtPayload {
   sub: string;
   memberEmail: string;
+  memberNickname?: string;
   memberType: string;
   memberStatus: string;
   iat?: number;
