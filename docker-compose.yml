@@ -1,0 +1,58 @@
+services:
+  kiwi:
+    container_name: kiwi
+    restart: always
+    image: node:20.10.0
+    ports:
+      - 4001:3007
+    volumes:
+      - ./:/usr/src/kiwi
+      - node_modules:/usr/src/kiwi/node_modules
+    working_dir: /usr/src/kiwi
+    environment:
+      - NODE_ENV=production
+      - PORT_API=${PORT_API:-3007}
+      - MONGO_PROD=${MONGO_PROD}
+    networks:
+      - monorepo-network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          "node -e \"const net=require('net');const s=net.connect(3007,'localhost',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+    # For PRODUCTION
+    command: bash -c "npm ci --include=dev && npm run build && npx nest build kiwi-batch && npm run start:prod"
+
+  kiwi-batch:
+    container_name: kiwi-batch
+    restart: always
+    image: node:20.10.0
+    ports:
+      - 4002:3008
+    volumes:
+      - ./:/usr/src/kiwi
+      - node_modules:/usr/src/kiwi/node_modules
+    working_dir: /usr/src/kiwi
+    environment:
+      - NODE_ENV=production
+      - PORT_BATCH=${PORT_BATCH:-3008}
+      - MONGO_PROD=${MONGO_PROD}
+    networks:
+      - monorepo-network
+    depends_on:
+      kiwi:
+        condition: service_healthy
+    # For PRODUCTION — skips install/build, reuses what kiwi already did
+    command: bash -c "npm run start:prod:batch"
+
+networks:
+  monorepo-network:
+    driver: bridge
+
+volumes:
+  node_modules:

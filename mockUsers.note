@@ -151,3 +151,6 @@ Specialized vendor importing premium fruits and vegetables from international fa
 
 Business License URL
 https://mock-storage.com/licenses/global-fresh-imports-license.jpg
+
+
+DOCKER run command: docker compose down -v && docker compose up -d
