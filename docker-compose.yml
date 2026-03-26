@@ -1,18 +1,28 @@
 services:
   kiwi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
     container_name: kiwi
-    restart: always
-    image: node:20.10.0
+    restart: unless-stopped
     ports:
-      - 4001:3007
+      - "${PORT_API_HOST:-4001}:3007"
     volumes:
-      - ./:/usr/src/kiwi
-      - node_modules:/usr/src/kiwi/node_modules
-    working_dir: /usr/src/kiwi
+      - uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - PORT_API=${PORT_API:-3007}
       - MONGO_PROD=${MONGO_PROD}
+      - APP_URL=${APP_URL:-http://localhost:4001}
+      - SECRET_TOKEN=${SECRET_TOKEN}
+      - CHECKOUT_CURRENCY=${CHECKOUT_CURRENCY:-USD}
+      - CHECKOUT_TAX_RATE=${CHECKOUT_TAX_RATE:-0}
+      - CHECKOUT_DELIVERY_FEE=${CHECKOUT_DELIVERY_FEE:-0}
+      - CHECKOUT_FREE_DELIVERY_THRESHOLD=${CHECKOUT_FREE_DELIVERY_THRESHOLD:-0}
+      - REVIEW_ELIGIBLE_ORDER_STATUSES=${REVIEW_ELIGIBLE_ORDER_STATUSES:-}
+      - REVIEW_VERIFIED_ORDER_MODE=${REVIEW_VERIFIED_ORDER_MODE:-RELAXED}
+    command: node dist/apps/kiwi/main
     networks:
       - monorepo-network
     healthcheck:
@@ -23,36 +33,35 @@ services:
         ]
       interval: 10s
       timeout: 5s
-      retries: 30
-      start_period: 120s
-    # For PRODUCTION
-    command: bash -c "npm ci --include=dev && npm run build && npx nest build kiwi-batch && npm run start:prod"
+      retries: 5
+      start_period: 30s
 
   kiwi-batch:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
     container_name: kiwi-batch
-    restart: always
-    image: node:20.10.0
+    restart: unless-stopped
     ports:
-      - 4002:3008
+      - "${PORT_BATCH_HOST:-4002}:3008"
     volumes:
-      - ./:/usr/src/kiwi
-      - node_modules:/usr/src/kiwi/node_modules
-    working_dir: /usr/src/kiwi
+      - uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - PORT_BATCH=${PORT_BATCH:-3008}
       - MONGO_PROD=${MONGO_PROD}
+    command: node dist/apps/kiwi-batch/main
     networks:
       - monorepo-network
     depends_on:
       kiwi:
         condition: service_healthy
-    # For PRODUCTION — skips install/build, reuses what kiwi already did
-    command: bash -c "npm run start:prod:batch"
 
 networks:
   monorepo-network:
+    name: monorepo-network
     driver: bridge
 
 volumes:
-  node_modules:
+  uploads:

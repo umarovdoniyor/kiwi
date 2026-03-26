@@ -1,0 +1,19 @@
+node_modules
+dist
+.git
+.gitignore
+coverage
+
+# Uploads are persisted via Docker volume, not baked into the image
+uploads
+
+# Local env files — never bake secrets into images
+.env
+.env.*
+
+# Docs and notes
+*.md
+Cart
+
+# OS artifacts
+.DS_Store
