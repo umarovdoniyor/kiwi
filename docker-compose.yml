@@ -9,13 +9,19 @@ services:
     ports:
       - "${PORT_API_HOST:-4001}:3007"
     volumes:
-      - uploads:/app/uploads
+      - ./uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - PORT_API=${PORT_API:-3007}
       - MONGO_PROD=${MONGO_PROD}
-      - APP_URL=${APP_URL:-http://localhost:4001}
+      - APP_URL=${APP_URL:-https://api.greenbazaar.cloud}
       - SECRET_TOKEN=${SECRET_TOKEN}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://greenbazaar.cloud}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - ADMIN_NICKNAME=${ADMIN_NICKNAME:-superadmin}
+      - ADMIN_FIRSTNAME=${ADMIN_FIRSTNAME:-System}
+      - ADMIN_LASTNAME=${ADMIN_LASTNAME:-Admin}
       - CHECKOUT_CURRENCY=${CHECKOUT_CURRENCY:-USD}
       - CHECKOUT_TAX_RATE=${CHECKOUT_TAX_RATE:-0}
       - CHECKOUT_DELIVERY_FEE=${CHECKOUT_DELIVERY_FEE:-0}
@@ -24,7 +30,7 @@ services:
       - REVIEW_VERIFIED_ORDER_MODE=${REVIEW_VERIFIED_ORDER_MODE:-RELAXED}
     command: node dist/apps/kiwi/main
     networks:
-      - monorepo-network
+      - greenbazaar-network
     healthcheck:
       test:
         [
@@ -46,22 +52,19 @@ services:
     ports:
       - "${PORT_BATCH_HOST:-4002}:3008"
     volumes:
-      - uploads:/app/uploads
+      - ./uploads:/app/uploads
     environment:
       - NODE_ENV=production
       - PORT_BATCH=${PORT_BATCH:-3008}
       - MONGO_PROD=${MONGO_PROD}
     command: node dist/apps/kiwi-batch/main
     networks:
-      - monorepo-network
+      - greenbazaar-network
     depends_on:
       kiwi:
         condition: service_healthy
 
 networks:
-  monorepo-network:
-    name: monorepo-network
+  greenbazaar-network:
+    name: greenbazaar-network
     driver: bridge
-
-volumes:
-  uploads:
